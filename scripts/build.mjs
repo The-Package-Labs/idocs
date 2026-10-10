@@ -28,7 +28,7 @@ const CONFIG = {
       ['src/virtual.d.ts', 'dist/virtual.d.ts'],
     ],
   },
-  'idocs': { entries: ['src/index.ts', 'src/bin.ts'], bins: ['dist/bin.js'] },
+  '@the-package-labs/idocs': { entries: ['src/index.ts', 'src/bin.ts'], bins: ['dist/bin.js'] },
   'create-idocs': { entries: ['src/index.ts', 'src/scaffold.ts'], bins: ['dist/index.js'], template: true },
 }
 

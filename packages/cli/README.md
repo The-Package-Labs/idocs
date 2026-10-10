@@ -1,4 +1,6 @@
-# idocs
+# @the-package-labs/idocs
+
+The `idocs` command line.
 
 ```sh
 idocs check [root...] [--json] [--strict]   validate diagrams; errors say file:line:col and suggest fixes

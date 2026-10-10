@@ -123,7 +123,7 @@ Everything here is published to npm and versioned together. The VS Code extensio
 | Package | Purpose |
 |---|---|
 | [`create-idocs`](https://www.npmjs.com/package/create-idocs) | `npm create idocs`: scaffolds a project from the starter template |
-| [`idocs`](https://www.npmjs.com/package/idocs) | the command line: `check`, `list`, `schema`, `icons search` and `new` |
+| [`@the-package-labs/idocs`](https://www.npmjs.com/package/@the-package-labs/idocs) | the command line: `check`, `list`, `schema`, `icons search` and `new` |
 | [`@the-package-labs/idocs-core`](https://www.npmjs.com/package/@the-package-labs/idocs-core) | schema, compiler, layout, edge router, scenario timeline. The main entry is browser-safe |
 | [`@the-package-labs/idocs-react`](https://www.npmjs.com/package/@the-package-labs/idocs-react) | the `DiagramView` component and its styles |
 | [`@the-package-labs/idocs-astro`](https://www.npmjs.com/package/@the-package-labs/idocs-astro) | the Astro integration and the `<Diagram>` component |

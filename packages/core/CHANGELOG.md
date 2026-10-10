@@ -2,6 +2,14 @@
 
 Versions up to 0.2.0 were published as `@packagelab/docspp-core`.
 
+## 0.3.1
+
+### Patch Changes
+
+- The command line is published as `@the-package-labs/idocs`: npm does not accept the unscoped name `idocs`. The command is still `idocs`, so `pnpm idocs check` and the `check` script work as before. Install it with `pnpm add -D @the-package-labs/idocs`.
+  
+  Projects made with `create-idocs` 0.3.0 depend on a package `idocs` that does not exist and fail to install. Make new projects with 0.3.1 or later, or in such a project replace `"idocs"` in `devDependencies` with `"@the-package-labs/idocs"`.
+
 ## 0.3.0
 
 ### Minor Changes

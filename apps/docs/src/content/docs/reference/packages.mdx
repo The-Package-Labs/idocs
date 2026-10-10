@@ -12,7 +12,7 @@ idocs is five packages, versioned together. Most people only ever install `creat
 | Package | Role | You install it |
 |---|---|---|
 | [`create-idocs`](#create-idocs) | Scaffolds a new site: `npm create idocs@latest`. | never; `npm create` runs it |
-| [`idocs`](#idocs) | The command line. | as a dev dependency |
+| [`@the-package-labs/idocs`](#the-package-labsidocs) | The command line, `idocs`. | as a dev dependency |
 | [`@the-package-labs/idocs-astro`](#the-package-labsidocs-astro) | The Astro integration and the `<Diagram>` component. | in your site |
 | [`@the-package-labs/idocs-react`](#the-package-labsidocs-react) | The interactive diagram component and its styles. | in your site |
 | [`@the-package-labs/idocs-core`](#the-package-labsidocs-core) | Schema, compiler, layout, router and timeline. | pulled in by the others |
@@ -27,7 +27,7 @@ npm create idocs@latest my-docs
 
 Copies the starter project into a folder that does not exist yet or is empty, filling in its name. The project uses pnpm. It carries its own copy of the template, so it works without any template repository.
 
-## idocs
+## @the-package-labs/idocs
 
 The `idocs` command. See the [CLI reference](../cli/).
 

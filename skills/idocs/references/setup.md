@@ -7,7 +7,7 @@ idocs renders diagrams inside an **Astro** site (usually with **Starlight** for 
 | Package | Role |
 |---|---|
 | `create-idocs` | `npm create idocs@latest`: scaffolds a new site. |
-| `idocs` | The CLI: `idocs check`, `list`, `schema`, `icons search`, `new`. |
+| `@the-package-labs/idocs` | The CLI: `idocs check`, `list`, `schema`, `icons search`, `new`. |
 | `@the-package-labs/idocs-astro` | The Astro integration and the `<Diagram>` component. |
 | `@the-package-labs/idocs-react` | The interactive diagram component (a dependency of the integration). |
 | `@the-package-labs/idocs-core` | Schema, compiler and layout (a dependency of the others). |
@@ -30,7 +30,7 @@ This creates an Astro + Starlight project with an example diagram (`diagrams/sho
 1. **Install.**
    ```sh
    pnpm add @the-package-labs/idocs-astro @the-package-labs/idocs-react @astrojs/react react react-dom
-   pnpm add -D idocs
+   pnpm add -D @the-package-labs/idocs
    ```
    On pnpm 10 or later, allow the build scripts it asks about by adding to `pnpm-workspace.yaml`:
    ```yaml
