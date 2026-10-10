@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
-- Renamed from docspp to idocs, and moved to [The-Package-Labs/idocs](https://github.com/The-Package-Labs/idocs). The extension id is now `packagelab.idocs-vscode`; uninstall `packagelab.docspp-vscode`. The language id is `idocs`, commands and settings start with `idocs.` (copy any `docspp.*` settings across), and Markdown fences are `idocs`.
+- Renamed from docspp to idocs, and moved to [The-Package-Labs/idocs](https://github.com/The-Package-Labs/idocs). The extension id is now `thepackagelabs.idocs-vscode`; uninstall `packagelab.docspp-vscode`. The language id is `idocs`, commands and settings start with `idocs.` (copy any `docspp.*` settings across), and Markdown fences are `idocs`.
 
 ## 0.1.0
 

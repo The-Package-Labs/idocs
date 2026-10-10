@@ -429,7 +429,7 @@ test('checks every diagram on request', async () => {
 })
 
 export async function run(): Promise<void> {
-  const extension = vscode.extensions.getExtension<IdocsApi>('packagelab.idocs-vscode')
+  const extension = vscode.extensions.getExtension<IdocsApi>('thepackagelabs.idocs-vscode')
   assert.ok(extension, 'the extension is not installed')
   api = await extension.activate()
 
