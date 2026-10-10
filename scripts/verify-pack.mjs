@@ -101,7 +101,9 @@ try {
   // after the first page load makes it re-optimize and reload, so any such line is a failure.
   step('astro dev')
   const dev = (...args) => run('pnpm', ['exec', 'astro', ...args], project)
-  dev('dev', '--port', String(DEV_PORT))
+  // Astro backgrounds the dev server by itself only when it detects an AI agent; anywhere else,
+  // CI included, it would stay in the foreground and this call would never return.
+  dev('dev', '--background', '--port', String(DEV_PORT))
   devStarted = true
   for (let i = 0; i < 60; i++) {
     if (await fetch(`http://localhost:${DEV_PORT}/`, { signal: AbortSignal.timeout(3000) }).then((r) => r.ok, () => false)) break
