@@ -64,4 +64,4 @@ The extension is versioned on its own (`version` in `package.json`, notes in `CH
 1. Update `CHANGELOG.md` and `version`, then merge.
 2. Tag `vscode-v<version>`. The **VS Code extension** workflow tests it, packs the `.vsix`, attaches it to a GitHub release, and publishes it when the repository variable `VSCODE_PUBLISH` is `true` and the secrets `VSCE_PAT` (Visual Studio Marketplace) and `OVSX_PAT` (Open VSX) are set.
 
-Before the first publish, create the `thepackagelabs` publisher at https://marketplace.visualstudio.com/manage (the `publisher` field in `package.json` must match it) and the namespace on https://open-vsx.org.
+The `publisher` field in `package.json` must match the publisher on each marketplace. On Open VSX the `thepackagelabs` namespace exists: 0.2.0 was published there on 2026-10-10 (by hand, with `ovsx publish`), and 0.1.0 is listed under the old id `packagelab.docspp-vscode`. Before the first Visual Studio Marketplace release, create the `thepackagelabs` publisher at https://marketplace.visualstudio.com/manage.
