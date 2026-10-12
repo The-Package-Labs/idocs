@@ -471,6 +471,66 @@
   color: var(--idocs-muted);
   font-size: 11px;
 }
+/* Entity cards: a header band, then one row per field. The rows are measured by `data-field`. */
+.idocs-node.has-fields {
+  gap: 0;
+  padding: 3px 0 0;
+}
+.idocs-node.has-fields .idocs-node-head {
+  padding: 8px 10px;
+  background: var(--fam-bg);
+  border-radius: 6px 6px 0 0;
+}
+.idocs-node.has-fields .idocs-node-lines {
+  padding: 6px 10px 7px;
+  border-top: 1px solid color-mix(in srgb, var(--idocs-line) 55%, transparent);
+}
+.idocs-fields {
+  padding: 4px 0 6px;
+  border-top: 1px solid color-mix(in srgb, var(--idocs-line) 55%, transparent);
+}
+.idocs-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 1.5px 10px;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+.idocs-field-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.idocs-field-name b {
+  margin-right: 4px;
+  color: var(--idocs-accent);
+}
+.idocs-field-name i {
+  margin-left: 5px;
+  font-style: normal;
+}
+.idocs-field-type {
+  flex: 0 1 auto;
+  max-width: 58%;
+  text-align: right;
+  color: var(--idocs-muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.idocs-field.is-key .idocs-field-name {
+  font-weight: 600;
+}
+.idocs-field.is-ref .idocs-field-name {
+  color: var(--idocs-accent);
+}
+.idocs-pill.is-tag {
+  max-width: 45%;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
 .idocs-pill {
   flex: none;
   font: 600 9.5px / 1 var(--idocs-mono);
@@ -807,6 +867,37 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+.idocs-drawer-body ul.idocs-drawer-fields {
+  padding: 0;
+  list-style: none;
+}
+.idocs-drawer-fields li {
+  padding: 4px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--idocs-line) 55%, transparent);
+}
+.idocs-drawer-field {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.idocs-drawer-field .idocs-field-name {
+  font-weight: 600;
+}
+.idocs-drawer-ref,
+.idocs-drawer-note {
+  font-size: 12px;
+  color: var(--idocs-muted);
+}
+.idocs-drawer-ref button {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--idocs-accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .idocs-md > :first-child {
   margin-top: 0;
 }
@@ -858,21 +949,8 @@
   color: var(--idocs-accent);
 }
 
-/* ---------- player ---------- */
+/* ---------- buttons of the bar under the picture ---------- */
 
-.idocs-player {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px 12px;
-  border-top: 1px solid var(--idocs-line);
-  background: var(--idocs-surface-2);
-}
-.idocs-player-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
 .idocs-btn {
   appearance: none;
   display: inline-grid;
@@ -917,11 +995,6 @@
   background: var(--idocs-ink);
   border-color: var(--idocs-ink);
   color: var(--idocs-bg);
-}
-.idocs-scrub {
-  width: 100%;
-  margin: 0;
-  accent-color: var(--idocs-accent);
 }
 .idocs-time {
   margin-left: auto;
@@ -1105,11 +1178,52 @@
 
 /* ---------- interfaces table ---------- */
 
-.idocs-table-wrap {
-  overflow-x: auto;
+.idocs-ifaces {
+  overflow: hidden;
   border: 1px solid var(--idocs-line);
   border-radius: 10px;
   background: var(--idocs-surface);
+}
+.idocs-ifaces-head {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  background: var(--idocs-surface-2);
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+.idocs-ifaces-head:hover {
+  background: color-mix(in srgb, var(--idocs-accent-soft) 60%, var(--idocs-surface-2));
+}
+.idocs-ifaces-head:focus-visible {
+  outline: 2px solid var(--idocs-accent);
+  outline-offset: -2px;
+}
+.idocs-ifaces-head .idocs-chev {
+  color: var(--idocs-muted);
+}
+.idocs-ifaces.is-open .idocs-ifaces-head {
+  border-bottom: 1px solid var(--idocs-line);
+}
+.idocs-ifaces-title {
+  flex: 1;
+  font: 600 11px var(--idocs-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--idocs-muted);
+}
+.idocs-ifaces-count {
+  font: 11px var(--idocs-mono);
+  color: var(--idocs-muted);
+}
+.idocs-table-wrap {
+  overflow-x: auto;
 }
 .idocs-table {
   border-collapse: collapse;
@@ -2019,7 +2133,7 @@
   user-select: text;
 }
 
-/* Folded away: a small pill in the corner that keeps the three buttons that matter while watching. */
+/* Folded away: one button in the corner that brings it back. */
 .idocs-panel.is-folded {
   bottom: auto;
   width: auto;
@@ -2032,19 +2146,8 @@
 .idocs-panel.is-folded .idocs-panel-fold {
   background: var(--idocs-surface-2);
 }
-.idocs-rail-player {
-  display: flex;
-  gap: 6px;
-}
-.idocs-rail-player .idocs-btn {
-  height: 28px;
-}
-.idocs-rail-player .idocs-btn.is-primary {
-  min-width: 32px;
-  padding: 0;
-}
 
-/* Scenarios and views, as cards: what it is, how long, and how the story divides up. */
+/* Views, as cards: what it is, how many nodes, and how many scenarios it has. */
 .idocs-scn-list {
   display: flex;
   flex-direction: column;
@@ -2088,22 +2191,8 @@
   line-height: 1.4;
   color: var(--idocs-muted);
 }
-.idocs-scn-bar {
-  display: flex;
-  gap: 2px;
-  height: 4px;
-  margin-top: 3px;
-}
-.idocs-scn-bar i {
-  flex-basis: 0;
-  border-radius: 2px;
-  background: var(--idocs-line);
-}
-.idocs-scn[aria-pressed="true"] .idocs-scn-bar i {
-  background: var(--idocs-accent);
-}
 
-/* The timeline: the steps of the scenario in progress, in phases that fold away. */
+/* The steps of the scenario in progress, in phases that fold away. */
 .idocs-panel-summary {
   margin: 10px 10px 4px;
   padding: 9px 12px;
@@ -2132,17 +2221,20 @@
 .idocs-steps-bar > span {
   flex: 1;
 }
-.idocs-panel .idocs-steps {
+.idocs-panel .idocs-steps,
+.idocs-steps-pop .idocs-steps {
   border: 0;
   border-radius: 0;
   background: none;
 }
-.idocs-panel .idocs-step {
+.idocs-panel .idocs-step,
+.idocs-steps-pop .idocs-step {
   grid-template-columns: 24px minmax(0, 1fr);
   gap: 3px 10px;
   padding: 7px 12px;
 }
-.idocs-panel .idocs-step-n {
+.idocs-panel .idocs-step-n,
+.idocs-steps-pop .idocs-step-n {
   width: 22px;
   height: 22px;
 }
@@ -2200,10 +2292,12 @@
   font: 11px var(--idocs-mono);
   color: var(--idocs-muted);
 }
-.idocs-panel .idocs-phase-title {
+.idocs-panel .idocs-phase-title,
+.idocs-steps-pop .idocs-phase-title {
   font-size: 13px;
 }
-.idocs-panel .idocs-phase-caption {
+.idocs-panel .idocs-phase-caption,
+.idocs-steps-pop .idocs-phase-caption {
   font-size: 12px;
 }
 
@@ -2451,58 +2545,6 @@
   display: grid;
 }
 
-/* Subtitles: what is happening, over the bottom of the viewport, centred on what the panel leaves. */
-.idocs-subtitles {
-  position: absolute;
-  left: calc(50% + var(--idocs-inset, 0px) / 2);
-  bottom: 24px;
-  z-index: 24;
-  width: max-content;
-  max-width: min(640px, calc(100% - var(--idocs-inset, 0px) - 32px));
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-.idocs-subtitle {
-  padding: 8px 15px 9px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--idocs-ink) 90%, transparent);
-  color: var(--idocs-bg);
-  text-align: center;
-  box-shadow: var(--idocs-shadow);
-}
-.idocs-subtitle.kind-error {
-  background: var(--idocs-bad);
-  color: #fff;
-}
-.idocs-subtitle-main {
-  display: flex;
-  justify-content: center;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 13.5px;
-  line-height: 1.35;
-}
-.idocs-subtitle-n {
-  font: 11px var(--idocs-mono);
-  opacity: 0.65;
-}
-.idocs-subtitle-route {
-  font-size: 12px;
-  line-height: 1.35;
-  opacity: 0.8;
-}
-.idocs-subtitle-note {
-  max-height: 3.9em;
-  margin-top: 4px;
-  overflow: hidden;
-  font-size: 12px;
-  line-height: 1.4;
-  opacity: 0.92;
-}
-.idocs-subtitle-note p {
-  margin: 0;
-}
-
 /* A narrow widget cannot share its picture with a column: the open panel becomes a sheet over the
    lower part of it. */
 @container idocs (max-width: 639px) {
@@ -2514,12 +2556,376 @@
     width: auto;
     height: min(58%, 360px);
   }
-  .idocs-subtitles {
-    left: 50%;
-    max-width: calc(100% - 32px);
-    bottom: 12px;
-  }
   .idocs-scroller {
     padding-left: 14px;
+  }
+}
+
+/* ---------- the bar under the picture: scenario, words, controls, a slider by step ---------- */
+
+.idocs-workspace.has-bar > .idocs-frame {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+/* It is the bottom edge of the viewport: the gap between the picture and it is taken back. */
+.idocs-bar {
+  position: relative;
+  z-index: 40;
+  margin-top: -14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px 12px;
+  border: 1px solid var(--idocs-line);
+  border-top: 0;
+  border-radius: 0 0 10px 10px;
+  background: var(--idocs-surface-2);
+}
+.idocs-bar-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 32px;
+}
+.idocs-bar-hint,
+.idocs-bar-meta {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--idocs-muted);
+}
+.idocs-bar-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+}
+.idocs-bar-title b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 14px;
+}
+.idocs-bar.kind-error .idocs-bar-title b {
+  color: var(--idocs-bad);
+}
+.idocs-bar-chip {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--idocs-accent-soft);
+  font: 600 11px var(--idocs-sans);
+  letter-spacing: 0.03em;
+}
+.idocs-bar-route {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--idocs-muted);
+}
+/* Two lines of room, always, so the bar does not change height from one step to the next. */
+.idocs-bar-words {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.idocs-bar-note {
+  flex: 1;
+  min-width: 0;
+  height: 2.8em;
+  overflow: hidden;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--idocs-muted);
+}
+.idocs-bar-note p {
+  margin: 0;
+}
+.idocs-bar-note p + p {
+  margin-top: 2px;
+}
+.idocs-bar-more {
+  appearance: none;
+  flex: none;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--idocs-accent);
+  cursor: pointer;
+}
+.idocs-bar-more:hover {
+  text-decoration: underline;
+}
+.idocs-bar-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.idocs-bar-transport,
+.idocs-bar-settings {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+.idocs-bar .idocs-modes {
+  flex: none;
+  height: 32px;
+}
+.idocs-bar .idocs-modes button {
+  flex: none;
+  padding: 0 10px;
+}
+
+/* A menu or a list that opens upward from the bar, over the picture. */
+.idocs-pop {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  z-index: 41;
+  border: 1px solid var(--idocs-line);
+  border-radius: 10px;
+  background: var(--idocs-surface);
+  box-shadow: 0 8px 28px rgb(20 32 43 / 18%);
+  overscroll-behavior: contain;
+  cursor: default;
+}
+.idocs-sel {
+  position: relative;
+  flex: none;
+  min-width: 0;
+  max-width: 46%;
+}
+.idocs-sel-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  height: 32px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--idocs-line);
+  border-radius: 8px;
+  background: var(--idocs-surface);
+  font-size: 13px;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+}
+.idocs-sel-btn:hover,
+.idocs-sel-btn[aria-expanded="true"] {
+  border-color: var(--idocs-accent);
+}
+.idocs-sel-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.idocs-sel-btn .idocs-chev,
+.idocs-steps-btn .idocs-chev {
+  color: var(--idocs-muted);
+  transform: rotate(-90deg);
+}
+.idocs-sel-btn .idocs-chev.is-open,
+.idocs-steps-btn .idocs-chev.is-open {
+  transform: rotate(90deg);
+}
+.idocs-sel-pop {
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: min(380px, 92cqw);
+  max-height: var(--idocs-pop-max, 380px);
+  padding: 6px;
+  overflow-y: auto;
+}
+.idocs-sel-item {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+.idocs-sel-item:hover {
+  background: color-mix(in srgb, var(--idocs-accent-soft) 55%, transparent);
+}
+.idocs-sel-item.is-chosen {
+  background: var(--idocs-accent-soft);
+}
+.idocs-sel-item:focus-visible,
+.idocs-sel-btn:focus-visible,
+.idocs-bar-more:focus-visible {
+  outline: 2px solid var(--idocs-accent);
+  outline-offset: -2px;
+}
+.idocs-sel-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.idocs-sel-meta {
+  font: 11px var(--idocs-mono);
+  color: var(--idocs-muted);
+}
+.idocs-sel-sum {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--idocs-muted);
+}
+
+/* Every step of the scenario, from the button on the bar. */
+.idocs-steps-wrap {
+  display: contents;
+}
+.idocs-steps-pop {
+  right: 10px;
+  width: min(460px, calc(100cqw - 20px));
+  overflow: hidden;
+}
+.idocs-steps-pop-body {
+  max-height: var(--idocs-pop-max, 380px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.idocs-steps-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.idocs-steps-btn[aria-expanded="true"] {
+  border-color: var(--idocs-accent);
+}
+
+/* The slider: a segment per step, all of a width, in groups by phase. Gaps are padding inside the
+   segments, so a place on the slider is the same fraction of the width as of the scenario. */
+.idocs-slider {
+  position: relative;
+  flex: 1 1 160px;
+  min-width: 120px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+.idocs-slider:focus-visible {
+  outline: 2px solid var(--idocs-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.idocs-slider-track {
+  display: flex;
+  width: 100%;
+  height: 6px;
+  transition: height 0.1s;
+}
+.idocs-slider:hover .idocs-slider-track,
+.idocs-slider:focus-visible .idocs-slider-track {
+  height: 9px;
+}
+.idocs-slider-section {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+}
+.idocs-slider-cell {
+  display: block;
+  min-width: 0;
+  padding: 0 1px;
+}
+.idocs-slider-track.is-solid .idocs-slider-cell {
+  padding: 0;
+}
+/* A wider gap between phases than between steps, taken from inside the segment so that every
+   segment stays the same width. */
+.idocs-slider-section:not(:first-child) > .idocs-slider-cell:first-child > span {
+  margin-left: 3px;
+}
+.idocs-slider-section:not(:last-child) > .idocs-slider-cell:last-child > span {
+  margin-right: 3px;
+}
+.idocs-slider-cell > span {
+  display: block;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--idocs-ink) 16%, var(--idocs-surface-2));
+}
+.idocs-slider-cell b {
+  display: block;
+  height: 100%;
+  background: var(--idocs-accent);
+}
+.idocs-slider-knob {
+  position: absolute;
+  top: 50%;
+  width: 13px;
+  height: 13px;
+  margin: -6.5px 0 0 -6.5px;
+  border-radius: 50%;
+  background: var(--idocs-accent);
+  box-shadow: 0 0 0 2px var(--idocs-surface-2);
+  pointer-events: none;
+}
+.idocs-slider-tip {
+  position: absolute;
+  bottom: calc(100% + 2px);
+  max-width: min(360px, 92cqw);
+  padding: 4px 9px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--idocs-ink) 92%, transparent);
+  font-size: 12px;
+  color: var(--idocs-bg);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+@container idocs (max-width: 639px) {
+  .idocs-bar-head,
+  .idocs-bar-controls,
+  .idocs-bar-settings {
+    flex-wrap: wrap;
+  }
+  .idocs-sel {
+    max-width: 100%;
+  }
+  .idocs-bar-title {
+    flex-basis: 100%;
+    order: 3;
+  }
+  .idocs-slider {
+    order: 3;
+    flex-basis: 100%;
+  }
+  .idocs-bar-settings {
+    order: 4;
+    flex-basis: 100%;
+  }
+  .idocs-bar .idocs-modes {
+    margin-left: auto;
+  }
+  .idocs-steps-pop {
+    right: 8px;
   }
 }

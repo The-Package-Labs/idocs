@@ -1,23 +1,11 @@
-import {
-  type CompiledDiagram,
-  type CompiledScenario,
-  type CompiledView,
-  hasPhases,
-  type Timeline,
-} from '@the-package-labs/idocs-core'
+import type { CompiledDiagram, CompiledView } from '@the-package-labs/idocs-core'
 import { type KeyboardEvent, useId } from 'react'
-import { FoldAll, UnfoldAll } from './Folding'
-import { Player, PlayerRail } from './Player'
-import { StepPanel } from './StepPanel'
-import type { Player as PlayerState } from './usePlayer'
 import { htmlText } from './util'
 
-export type SideTab = 'outline' | 'scenarios' | 'timeline' | 'views'
+export type SideTab = 'outline' | 'views'
 
 const LABELS: Record<SideTab, string> = {
   outline: 'Outline',
-  scenarios: 'Scenarios',
-  timeline: 'Timeline',
   views: 'Views',
 }
 
@@ -28,10 +16,6 @@ export const PANEL_GAP = 10
 interface Props {
   diagram: CompiledDiagram
   view: CompiledView
-  /** The scenarios that play on the current view. */
-  scenarios: CompiledScenario[]
-  scenario: CompiledScenario | null
-  onScenario: (id: string | null) => void
   onView: (id: string) => void
   tab: SideTab
   tabs: SideTab[]
@@ -40,18 +24,6 @@ interface Props {
   onOpen: (open: boolean) => void
   /** The tree of nodes and connections, built by whoever owns the selection it reflects. */
   outline: React.ReactNode
-  player: PlayerState
-  timeline: Timeline | null
-  mode: 'flow' | 'sequence' | 'story'
-  onMode: (m: 'flow' | 'sequence' | 'story') => void
-  stepIndex: number
-  subtitles: boolean
-  onSubtitles: (on: boolean) => void
-  /** Phases (by index) of the scenario that are folded away, in every presentation of it. */
-  collapsed: ReadonlySet<number>
-  onTogglePhase: (phase: number) => void
-  /** Fold every phase away, or show them all. */
-  onFoldPhases: (fold: boolean) => void
 }
 
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`
@@ -89,36 +61,12 @@ const panelIcon = (
 )
 
 /**
- * Everything about what to look at and how, floating inside the viewport like the panels of a
- * diagram editor: the outline of nodes and connections, the scenarios, the timeline of the one
- * that is playing, the views, and the player. It folds to a small pill that keeps the play buttons.
+ * What there is to look at, floating inside the viewport like the panels of a diagram editor: the
+ * outline of nodes and connections, and the views. Scenarios and their player are not here but
+ * in the bar under the picture. It folds to a button.
  */
-export function Panel({
-  diagram,
-  view,
-  scenarios,
-  scenario,
-  onScenario,
-  onView,
-  tab,
-  tabs,
-  onTab,
-  open,
-  onOpen,
-  outline,
-  player,
-  timeline,
-  mode,
-  onMode,
-  stepIndex,
-  subtitles,
-  onSubtitles,
-  collapsed,
-  onTogglePhase,
-  onFoldPhases,
-}: Props) {
+export function Panel({ diagram, view, onView, tab, tabs, onTab, open, onOpen, outline }: Props) {
   const uid = useId().replace(/:/g, '')
-  const total = scenario?.steps.length ?? 0
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     const keys: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }
@@ -146,7 +94,6 @@ export function Panel({
         >
           {panelIcon}
         </button>
-        {scenario && timeline && <PlayerRail player={player} stepIndex={stepIndex} total={total} />}
       </aside>
     )
   }
@@ -194,95 +141,6 @@ export function Panel({
       >
         {tab === 'outline' && outline}
 
-        {tab === 'scenarios' && (
-          <div className="idocs-scn-list" role="group" aria-label="Scenarios">
-            <button
-              type="button"
-              className="idocs-scn"
-              aria-pressed={!scenario}
-              onClick={() => onScenario(null)}
-            >
-              <span className="idocs-scn-title">Overview</span>
-              <span className="idocs-scn-sum">The diagram on its own, to explore.</span>
-            </button>
-            {scenarios.map((s) => {
-              const phases = s.phases.map(
-                (_, i) => s.steps.filter((x) => x.phase === i).length || 1,
-              )
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  className="idocs-scn"
-                  aria-pressed={s.id === scenario?.id}
-                  onClick={() => onScenario(s.id)}
-                >
-                  <span className="idocs-scn-title">{s.title}</span>
-                  <span className="idocs-scn-meta">
-                    {count(s.steps.length, 'step')}
-                    {s.phases.length > 1 ? ` · ${count(s.phases.length, 'phase')}` : ''}
-                    {s.mode && s.mode !== 'flow' ? ` · ${s.mode}` : ''}
-                  </span>
-                  {s.summaryHtml && (
-                    <span className="idocs-scn-sum">{htmlText(s.summaryHtml)}</span>
-                  )}
-                  <span className="idocs-scn-bar" aria-hidden="true">
-                    {phases.map((n, i) => (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: phases have no ids of their own
-                      <i key={i} style={{ flexGrow: n }} />
-                    ))}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        )}
-
-        {tab === 'timeline' && scenario && (
-          <>
-            {scenario.summaryHtml && (
-              <div className="idocs-panel-summary">
-                <span className="idocs-panel-summary-title">The story in one breath</span>
-                <div dangerouslySetInnerHTML={{ __html: scenario.summaryHtml }} />
-              </div>
-            )}
-            {hasPhases(scenario) && scenario.phases.length > 1 && (
-              <div className="idocs-steps-bar">
-                <span>{count(scenario.phases.length, 'phase')}</span>
-                <button
-                  type="button"
-                  className="idocs-fold-btn"
-                  title="Fold every phase away"
-                  aria-label="Fold every phase away"
-                  onClick={() => onFoldPhases(true)}
-                  disabled={collapsed.size >= scenario.phases.length}
-                >
-                  <FoldAll />
-                </button>
-                <button
-                  type="button"
-                  className="idocs-fold-btn"
-                  title="Show every phase"
-                  aria-label="Show every phase"
-                  onClick={() => onFoldPhases(false)}
-                  disabled={collapsed.size === 0}
-                >
-                  <UnfoldAll />
-                </button>
-              </div>
-            )}
-            <StepPanel
-              diagram={diagram}
-              scenario={scenario}
-              current={stepIndex}
-              ended={player.ended}
-              onSeek={player.playStep}
-              collapsed={collapsed}
-              onTogglePhase={onTogglePhase}
-            />
-          </>
-        )}
-
         {tab === 'views' && (
           <div className="idocs-scn-list" role="group" aria-label="Views">
             {diagram.views.map((v) => {
@@ -309,18 +167,6 @@ export function Panel({
           </div>
         )}
       </div>
-
-      {scenario && timeline && (
-        <Player
-          player={player}
-          timeline={timeline}
-          mode={mode}
-          onMode={onMode}
-          stepIndex={stepIndex}
-          subtitles={subtitles}
-          onSubtitles={onSubtitles}
-        />
-      )}
     </aside>
   )
 }

@@ -14,13 +14,45 @@ const ChipSchema = z.union([
   z.strictObject({ label: z.string(), sub: z.string().optional() }),
 ])
 
+const FieldProps = z.strictObject({
+  type: z.string().optional().describe('Its type: `keyword`, `uuid`, `string[]`.'),
+  key: z.boolean().optional().describe('Part of the primary key. Shown with a `#` in front.'),
+  ref: z
+    .string()
+    .optional()
+    .describe(
+      'The `node` or `node.field` this one points at, like a foreign key. Draws a relation between the two cards.',
+    ),
+  note: z.string().optional().describe('Shown on hover and in the drawer.'),
+})
+
+/** One field per list item: `- name`, `- name: type` or `- name: { type, key, ref, note }`. */
+const FieldSchema = z.union([
+  z.string().min(1),
+  z
+    .record(z.string().min(1), z.union([z.string(), z.null(), FieldProps]))
+    .refine((o) => Object.keys(o).length === 1, {
+      message: 'One field per list item: `- name: type`',
+    }),
+])
+
 export const NodeSchema = z.strictObject({
   title: z.string().optional().describe('Display name. Defaults to the node id.'),
   sub: z
     .string()
     .optional()
     .describe('One line under the title, rendered in mono (ports, stack, version).'),
+  pill: z
+    .string()
+    .optional()
+    .describe('Short label in the card header, like `TABLE` or `ES INDEX`.'),
   lines: z.array(z.string()).optional().describe('Short body lines inside the card.'),
+  fields: z
+    .array(FieldSchema)
+    .optional()
+    .describe(
+      'Makes the card an entity: a table of fields, each `name: type`. `ref` points a field at another entity.',
+    ),
   icon: z
     .string()
     .optional()
@@ -220,10 +252,44 @@ export const ScenarioSchema = ScenarioBase.refine(
   { message: 'A scenario needs `steps` or `phases`' },
 )
 
+export const DefaultsSchema = z.strictObject({
+  view: Id.optional().describe(
+    'View shown first. Defaults to the view of `scenario`, or else the first view.',
+  ),
+  scenario: Id.optional().describe(
+    'Scenario selected first. Without it the diagram opens on its overview. It does not play until a reader presses play, unless `autoplay` is on.',
+  ),
+  mode: z
+    .enum(['flow', 'sequence', 'story'])
+    .optional()
+    .describe(
+      'How a scenario is drawn when it has no `mode` of its own: packets over the diagram, a sequence diagram, or a swimlane story.',
+    ),
+  sidebar: z
+    .boolean()
+    .optional()
+    .describe(
+      'Whether the panel over the picture starts open. By default it does when there is a scenario or another view to choose, and the frame is wide enough.',
+    ),
+  subtitles: z
+    .boolean()
+    .optional()
+    .describe('Words over the picture saying what the scenario is doing. On by default.'),
+  autoplay: z
+    .boolean()
+    .optional()
+    .describe(
+      'Play `scenario` as soon as the diagram is on screen. Needs `scenario`, and is ignored when the system asks for reduced motion.',
+    ),
+})
+
 export const RootSchema = z.strictObject({
   $schema: z.string().optional(),
   title: z.string(),
   description: z.string().optional().describe('Markdown shown above the first view.'),
+  defaults: DefaultsSchema.optional().describe(
+    'How the diagram opens: its view, scenario and mode, and whether the panel and subtitles show. A page can still choose otherwise with the props of `<Diagram>`.',
+  ),
   kinds: z
     .record(Id, z.strictObject({ icon: z.string().optional(), family: FamilySchema.optional() }))
     .optional(),
@@ -246,6 +312,7 @@ export const RootSchema = z.strictObject({
 })
 
 export type RootInput = z.infer<typeof RootSchema>
+export type FieldInput = z.infer<typeof FieldSchema>
 export type Step = z.infer<typeof StepSchema>
 
 export const KNOWN_KEYS = {
@@ -255,6 +322,7 @@ export const KNOWN_KEYS = {
   edge: Object.keys(EdgeSchema.shape),
   view: Object.keys(ViewSchema.shape),
   scenario: Object.keys(ScenarioBase.shape),
+  defaults: Object.keys(DefaultsSchema.shape),
 } as const
 
 type Json = Record<string, unknown>

@@ -14,7 +14,7 @@ import { Aside } from '@astrojs/starlight/components'
 | **Format** | `diagram.yaml` with nodes, groups, edges, views, scenarios, custom kinds and edge kinds. Shorthand for edges and steps. Node docs from Markdown files. Long scenarios from their own files. A JSON Schema for editors. |
 | **Compiler** | YAML to a validated, JSON-serialisable model. Errors with `file:line:col` and "did you mean" hints. Icons bundled at build time. Markdown rendered at build time. |
 | **Layout** | Group by group, bottom up. ELK for flow groups, author-written rows, packed rows and grids, an obstacle-avoiding router for the edges between zones, and an automatic choice of direction. |
-| **Renderer** | Pan, zoom, fit and full screen. Cards with icons, status, chips and badges. Zones and frames. Edge kinds with a generated legend, letter keys, hover focus and a planned-items toggle. A detail drawer. An interfaces table. Nested diagrams: a node can open another diagram, with a trail back. Light and dark. |
+| **Renderer** | Pan, zoom, fit and full screen. Cards with icons, status, chips and badges. [Entity cards](../../format/entities/) with fields and relations. Zones and frames. Edge kinds with a generated legend, letter keys, hover focus and a planned-items toggle. A detail drawer. An interfaces table. Nested diagrams: a node can open another diagram, with a trail back. Light and dark. |
 | **Scenarios** | Several per diagram. Phases, self steps, parallel steps, automatic multi-hop routing, five packet kinds, notes, hidden edges. A player with play, pause, step, scrub and speed. Flow, sequence and swimlane story presentations. A follow camera. Deep links. |
 | **Site** | Astro and Starlight, `<Diagram>`, a GitHub Pages workflow and CI. |
 | **Playground** | Live YAML preview, visual editing of nodes, groups and connections, local drafts, undo/redo, examples and YAML import/export. [Open the playground](../../playground/). |
@@ -26,7 +26,7 @@ These are directions, in no particular order. Open an issue on [GitHub](https://
 
 ### More view types
 
-State diagrams and entity cards with field-level relations. The format reserves `type:` on views for this. The swimlane story is already done, as a presentation of a scenario rather than a view type.
+State diagrams, and relation lines that end on the field's row of an entity card instead of on the card. The format reserves `type:` on views for this. The swimlane story is already done, as a presentation of a scenario rather than a view type.
 
 ### Forked scenarios
 

@@ -1,14 +1,15 @@
 import { type Document, isMap, isSeq, LineCounter, type Node, parseDocument } from 'yaml'
-import { BUILTIN_EDGE_KINDS, BUILTIN_KINDS, type KindDef } from './defaults'
+import { BUILTIN_EDGE_KINDS, BUILTIN_KINDS, DEFAULT_ENTITY_WIDTH, type KindDef } from './defaults'
 import { letterKey } from './geometry'
 import { type IconResult, iconFromSvg } from './icon-resolver'
 import { renderMarkdown } from './markdown'
 import { normalizeRoot } from './normalize'
-import { KNOWN_KEYS, type RootInput, RootSchema, type Step } from './schema'
+import { type FieldInput, KNOWN_KEYS, type RootInput, RootSchema, type Step } from './schema'
 import { didYouMean } from './suggest'
 import type {
   CompiledDiagram,
   CompiledEdge,
+  CompiledField,
   CompiledGroup,
   CompiledLane,
   CompiledNode,
@@ -16,6 +17,7 @@ import type {
   CompiledScenario,
   CompiledStep,
   CompiledView,
+  DiagramDefaults,
   Direction,
   EdgeKindDef,
   Hop,
@@ -244,6 +246,7 @@ function build(
 
   // Nodes
   const nodes: Record<string, CompiledNode> = {}
+  const refTexts: { node: string; index: number; text: string }[] = []
   for (const [id, n] of Object.entries(data.nodes)) {
     if (n.kind && !kinds[n.kind]) {
       warn(
@@ -275,11 +278,26 @@ function build(
       .filter((t): t is string => !!t)
       .map(renderMarkdown)
       .join('')
+    const fields = (n.fields ?? []).map(toField)
+    const seenFields = new Set<string>()
+    fields.forEach((f, i) => {
+      if (seenFields.has(f.name)) {
+        error(`Field "${f.name}" appears twice in "${id}"`, ['nodes', id, 'fields', i])
+      }
+      seenFields.add(f.name)
+    })
+    n.fields?.forEach((item, i) => {
+      const ref = typeof item === 'object' && item ? Object.values(item)[0] : undefined
+      if (ref && typeof ref === 'object' && ref.ref !== undefined)
+        refTexts.push({ node: id, index: i, text: ref.ref })
+    })
     nodes[id] = {
       id,
       title: n.title ?? id,
       sub: n.sub,
+      pill: n.pill,
       lines: n.lines ?? [],
+      fields,
       icon: iconFor(n.icon ?? kind?.icon, ['nodes', id, n.icon ? 'icon' : 'kind']),
       kind: n.kind,
       family: n.family ?? kind?.family,
@@ -288,7 +306,7 @@ function build(
       badge: n.badge === undefined ? undefined : String(n.badge),
       uses: n.uses ?? [],
       chips: (n.chips ?? []).map((c) => (typeof c === 'string' ? { label: c } : c)),
-      w: n.w,
+      w: n.w ?? (fields.length ? DEFAULT_ENTITY_WIDTH : undefined),
       docHtml: docHtml || undefined,
       links: n.links ?? [],
       refs: n.refs ?? [],
@@ -297,19 +315,44 @@ function build(
     }
   }
 
+  // Relations written on fields. Resolved here, once every node and field is known.
+  for (const { node: id, index, text } of refTexts) {
+    const found = resolveEnd(text, nodes)
+    if ('end' in found) {
+      nodes[id]!.fields[index]!.ref = found.end
+      continue
+    }
+    const name = nodes[id]!.fields[index]!.name
+    error(
+      found.message ?? `Field "${name}" points at "${text}", which is not a node`,
+      ['nodes', id, 'fields', index, name, 'ref'],
+      found.hint ?? didYouMean(text, Object.keys(nodes)),
+    )
+  }
+
   // Edges
   const edges: Record<string, CompiledEdge> = {}
   const nodeIds = Object.keys(nodes)
   ;(data.edges ?? []).forEach((e, i) => {
     const path: Path = ['edges', i]
     let ok = true
+    const ends = {} as Record<'from' | 'to', End>
     for (const end of ['from', 'to'] as const) {
-      if (!nodes[e[end]]) {
-        error(`Edge ${end} "${e[end]}" is not a node`, [...path, end], didYouMean(e[end], nodeIds))
+      const found = resolveEnd(e[end], nodes)
+      if ('end' in found) ends[end] = found.end
+      else {
+        error(
+          found.message ?? `Edge ${end} "${e[end]}" is not a node`,
+          [...path, end],
+          found.hint ?? didYouMean(e[end], nodeIds),
+        )
         ok = false
       }
     }
-    const kind = e.kind ?? 'http'
+    // Between two entities an edge is a relation, unless it says otherwise.
+    const between =
+      ends.from && ends.to && [ends.from, ends.to].every((x) => nodes[x.node]!.fields.length)
+    const kind = e.kind ?? (between ? 'relation' : 'http')
     if (!edgeKinds[kind]) {
       error(
         `Unknown edge kind "${kind}"`,
@@ -318,7 +361,7 @@ function build(
       )
       ok = false
     }
-    if (e.from === e.to) {
+    if (ok && ends.from.node === ends.to.node) {
       warn('Edge connects a node to itself and is not drawn', path)
       ok = false
     }
@@ -330,8 +373,10 @@ function build(
     }
     edges[id] = {
       id,
-      from: e.from,
-      to: e.to,
+      from: ends.from.node,
+      to: ends.to.node,
+      fromField: ends.from.field,
+      toField: ends.to.field,
       label: e.label,
       kind,
       both: e.both ?? false,
@@ -344,6 +389,35 @@ function build(
       noteHtml: e.note ? renderMarkdown(e.note) : undefined,
     }
   })
+
+  // A field that points at another entity draws that relation, unless the author wrote the same
+  // edge by hand (to give it a label).
+  const written = new Set(
+    Object.values(edges).flatMap((e) => {
+      const a = `${e.from}.${e.fromField ?? ''}`
+      const b = `${e.to}.${e.toField ?? ''}`
+      return [`${a}>${b}`, `${b}>${a}`]
+    }),
+  )
+  for (const node of Object.values(nodes)) {
+    for (const f of node.fields) {
+      if (!f.ref || f.ref.node === node.id) continue
+      const key = `${node.id}.${f.name}>${f.ref.node}.${f.ref.field ?? ''}`
+      if (written.has(key)) continue
+      const id = `ref:${node.id}.${f.name}`
+      edges[id] = {
+        id,
+        from: node.id,
+        to: f.ref.node,
+        fromField: f.name,
+        toField: f.ref.field,
+        kind: 'relation',
+        both: false,
+        hidden: false,
+        status: 'built',
+      }
+    }
+  }
 
   // Views
   const viewDefs = Object.keys(data.views ?? {}).length
@@ -368,16 +442,65 @@ function build(
     if (sc) scenarios.push(sc)
   }
 
+  const defaults = buildDefaults(data.defaults, views, scenarios, error)
+
   return {
     name: src.name,
     title: data.title,
     descriptionHtml: data.description ? renderMarkdown(data.description) : undefined,
+    defaults,
     nodes,
     groups,
     edges,
     edgeKinds,
     views,
     scenarios,
+  }
+}
+
+/** The row of an entity card an author wrote: `name`, `name: type` or `name: { type, key, ... }`. */
+function toField(item: FieldInput): CompiledField {
+  if (typeof item === 'string') return { name: item }
+  const [name, value] = Object.entries(item)[0]!
+  if (value == null) return { name }
+  if (typeof value === 'string') return { name, type: value }
+  const { ref: _ref, ...rest } = value
+  return { name, ...rest }
+}
+
+interface End {
+  node: string
+  field?: string
+}
+
+/**
+ * What an edge or a `ref` names: a node, or `node.field`. Fields have dots in their names too
+ * (`meta.version`), and so can nodes, so a node id wins and otherwise every split is tried.
+ */
+function resolveEnd(
+  text: string,
+  nodes: Record<string, CompiledNode>,
+): { end: End } | { message?: string; hint?: string } {
+  if (nodes[text]) return { end: { node: text } }
+  const matches: End[] = []
+  let known: CompiledNode | undefined
+  for (let i = text.indexOf('.'); i > 0; i = text.indexOf('.', i + 1)) {
+    const node = nodes[text.slice(0, i)]
+    if (!node) continue
+    known ??= node
+    const field = text.slice(i + 1)
+    if (node.fields.some((f) => f.name === field)) matches.push({ node: node.id, field })
+  }
+  if (matches.length === 1) return { end: matches[0]! }
+  if (matches.length > 1) {
+    return { message: `"${text}" could be more than one field`, hint: 'Rename a node or a field.' }
+  }
+  if (!known) return {}
+  const field = text.slice(known.id.length + 1)
+  const names = known.fields.map((f) => f.name)
+  return {
+    message: `Node "${known.id}" has no field "${field}"`,
+    hint: didYouMean(field, names) ?? (names.length ? `Fields: ${names.join(', ')}` : undefined),
   }
 }
 
@@ -457,6 +580,48 @@ function buildView(
     keys,
     interfaces: v.interfaces ?? false,
   }
+}
+
+/**
+ * What the author asked the diagram to open with. The view and the scenario must exist, and when
+ * both are named the scenario must play on that view, or the opening would be a contradiction.
+ */
+function buildDefaults(
+  d: RootInput['defaults'],
+  views: CompiledView[],
+  scenarios: CompiledScenario[],
+  error: Report,
+): DiagramDefaults | undefined {
+  if (!d) return undefined
+  const ids = (list: { id: string }[]) => list.map((x) => x.id)
+  const view = views.find((v) => v.id === d.view)
+  if (d.view !== undefined && !view) {
+    error(
+      `defaults.view "${d.view}" is not a view`,
+      ['defaults', 'view'],
+      didYouMean(d.view, ids(views)),
+    )
+  }
+  const scenario = scenarios.find((s) => s.id === d.scenario)
+  if (d.scenario !== undefined && !scenario) {
+    error(
+      `defaults.scenario "${d.scenario}" is not a scenario`,
+      ['defaults', 'scenario'],
+      didYouMean(d.scenario, ids(scenarios)),
+    )
+  }
+  if (view && scenario && scenario.view !== view.id) {
+    error(
+      `defaults.scenario "${scenario.id}" plays on view "${scenario.view}", not "${view.id}"`,
+      ['defaults', 'scenario'],
+      `Drop \`view\` and the diagram opens on "${scenario.view}", or pick a scenario of "${view.id}".`,
+    )
+  }
+  if (d.autoplay && d.scenario === undefined) {
+    error('defaults.autoplay needs a defaults.scenario to play', ['defaults', 'autoplay'])
+  }
+  const out = Object.fromEntries(Object.entries(d).filter(([, v]) => v !== undefined))
+  return Object.keys(out).length ? (out as DiagramDefaults) : undefined
 }
 
 type StepInput = Step
@@ -794,6 +959,8 @@ function describeIssue(issue: ZodIssueLike): { message: string; hint?: string } 
 function allowedKeysFor(path: PropertyKey[]): readonly string[] | undefined {
   const [section] = path
   if (path.length === 0) return KNOWN_KEYS.root
+  // `defaults` is one mapping, not a collection of them like `nodes` or `views`.
+  if (path.length === 1) return section === 'defaults' ? KNOWN_KEYS.defaults : undefined
   if (path.length !== 2) return undefined
   switch (section) {
     case 'nodes':

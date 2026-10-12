@@ -98,16 +98,12 @@ describe('landing page', () => {
     expect(await hero.locator('.idocs-tool[aria-pressed="true"]:has-text("Follow")').count()).toBe(
       0,
     )
-    // Views and scenarios are in the panel, which starts folded to a pill so the picture has room.
+    // The scenarios and the player are on the bar under the picture, in view from the start. The
+    // panel, with the outline and the views, starts folded so the picture has room.
     expect(await hero.locator('.idocs-panel.is-folded').count()).toBe(1)
-    expect(await hero.locator('.idocs-panel.is-folded [aria-label="Next step"]').count()).toBe(1)
+    expect(await hero.locator('.idocs-bar [aria-label="Next step"]').count()).toBe(1)
     await hero.getByRole('button', { name: 'Show the panel' }).click()
-    expect(await hero.locator('.idocs-panel-tab').allTextContents()).toEqual([
-      'Outline',
-      'Views',
-      'Scenarios',
-      'Timeline',
-    ])
+    expect(await hero.locator('.idocs-panel-tab').allTextContents()).toEqual(['Outline', 'Views'])
     expect(await scenarioTitles(page, '.lp-hero')).toEqual([
       'Overview',
       'Place an order',
@@ -126,6 +122,8 @@ describe('landing page', () => {
     await page.waitForSelector('.lp-hero [data-inline][data-node="stock"]')
     expect(await page.locator('.lp-hero [data-node="stock/api"]').count()).toBe(1)
     await pickView(page, 'Interfaces', '.lp-hero')
+    // The table is folded until it is asked for.
+    await page.click('.lp-hero .idocs-ifaces-head')
     await page.waitForSelector('.lp-hero table')
     expect(problems).toEqual([])
     await close()

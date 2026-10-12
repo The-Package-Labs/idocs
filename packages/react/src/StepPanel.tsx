@@ -35,7 +35,7 @@ export function StepPanel({
   // biome-ignore lint/correctness/useExhaustiveDependencies: the step in progress is the trigger
   useEffect(() => {
     const el = root.current?.querySelector<HTMLElement>('.idocs-step.is-active')
-    const box = el?.closest<HTMLElement>('.idocs-panel-body')
+    const box = el?.closest<HTMLElement>('.idocs-steps-pop-body, .idocs-panel-body')
     if (el && box) keepInView(el, box)
   }, [current])
   const title = (id?: string) => (id ? (diagram.nodes[id]?.title ?? id) : '')

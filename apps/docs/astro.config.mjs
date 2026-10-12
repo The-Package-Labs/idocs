@@ -94,9 +94,11 @@ export default defineConfig({
           items: [
             { slug: 'format/overview' },
             { slug: 'format/nodes' },
+            { slug: 'format/entities' },
             { slug: 'format/groups' },
             { slug: 'format/edges' },
             { slug: 'format/views' },
+            { slug: 'format/defaults' },
             { slug: 'format/nested-diagrams' },
             { slug: 'format/kinds' },
             { slug: 'format/node-docs' },

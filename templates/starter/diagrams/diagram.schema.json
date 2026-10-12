@@ -13,6 +13,44 @@
       "description": "Markdown shown above the first view.",
       "type": "string"
     },
+    "defaults": {
+      "description": "How the diagram opens: its view, scenario and mode, and whether the panel and subtitles show. A page can still choose otherwise with the props of `<Diagram>`.",
+      "type": "object",
+      "properties": {
+        "view": {
+          "description": "View shown first. Defaults to the view of `scenario`, or else the first view.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+$"
+        },
+        "scenario": {
+          "description": "Scenario selected first. Without it the diagram opens on its overview. It does not play until a reader presses play, unless `autoplay` is on.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+$"
+        },
+        "mode": {
+          "description": "How a scenario is drawn when it has no `mode` of its own: packets over the diagram, a sequence diagram, or a swimlane story.",
+          "type": "string",
+          "enum": [
+            "flow",
+            "sequence",
+            "story"
+          ]
+        },
+        "sidebar": {
+          "description": "Whether the panel over the picture starts open. By default it does when there is a scenario or another view to choose, and the frame is wide enough.",
+          "type": "boolean"
+        },
+        "subtitles": {
+          "description": "Words over the picture saying what the scenario is doing. On by default.",
+          "type": "boolean"
+        },
+        "autoplay": {
+          "description": "Play `scenario` as soon as the diagram is on screen. Needs `scenario`, and is ignored when the system asks for reduced motion.",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
     "kinds": {
       "type": "object",
       "propertyNames": {
@@ -185,11 +223,66 @@
                 "description": "One line under the title, rendered in mono (ports, stack, version).",
                 "type": "string"
               },
+              "pill": {
+                "description": "Short label in the card header, like `TABLE` or `ES INDEX`.",
+                "type": "string"
+              },
               "lines": {
                 "description": "Short body lines inside the card.",
                 "type": "array",
                 "items": {
                   "type": "string"
+                }
+              },
+              "fields": {
+                "description": "Makes the card an entity: a table of fields, each `name: type`. `ref` points a field at another entity.",
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "description": "Its type: `keyword`, `uuid`, `string[]`.",
+                                "type": "string"
+                              },
+                              "key": {
+                                "description": "Part of the primary key. Shown with a `#` in front.",
+                                "type": "boolean"
+                              },
+                              "ref": {
+                                "description": "The `node` or `node.field` this one points at, like a foreign key. Draws a relation between the two cards.",
+                                "type": "string"
+                              },
+                              "note": {
+                                "description": "Shown on hover and in the drawer.",
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    }
+                  ]
                 }
               },
               "icon": {

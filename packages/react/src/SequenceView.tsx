@@ -25,6 +25,9 @@ const TOP = 78
 const ROW_FLOW = 42
 const ROW_SELF = 44
 const ROW_PHASE = 30
+/** The header box of a node: where it starts, and how tall it is. */
+const HEAD_Y = 8
+const HEAD_H = 50
 
 const STROKE: Record<string, { color: string; dash?: string; width: number }> = {
   request: { color: 'var(--idocs-ink)', width: 1.6 },
@@ -107,15 +110,15 @@ export function SequenceView({
         role="img"
         aria-label={`Sequence diagram: ${scenario.title}`}
       >
-        {/* Dotted separators between the columns, not through the middle of them, so it is clear which
-            column a header and the arrows below it belong to. */}
-        {Array.from({ length: actors.length + 1 }, (_, k) => (
+        {/* Each node's lifeline hangs from the middle of its header, which is where the arrows below
+            begin and end. */}
+        {actors.map((id) => (
           <line
-            key={`sep${actors[k] ?? 'end'}`}
-            className="seq-sep"
-            x1={LEFT + k * COL}
-            x2={LEFT + k * COL}
-            y1={6}
+            key={`life${id}`}
+            className="seq-lifeline"
+            x1={x(id)}
+            x2={x(id)}
+            y1={HEAD_Y + HEAD_H}
             y2={height - 6}
             stroke="var(--idocs-line)"
             strokeWidth="1.3"
@@ -228,9 +231,9 @@ export function SequenceView({
               <title>{n.title}</title>
               <rect
                 x={bx}
-                y={8}
+                y={HEAD_Y}
                 width={COL - 24}
-                height={50}
+                height={HEAD_H}
                 rx={8}
                 fill="var(--idocs-surface)"
                 stroke="var(--idocs-line)"

@@ -62,8 +62,6 @@ interface Props {
   reserve?: number
   /** How much of the right edge the drawer covers right now, in px: the camera centres on the rest. */
   insetRight?: number
-  /** Words over the bottom of the frame, centred: what the scenario is doing right now. */
-  subtitle?: React.ReactNode
   /** The shortest the frame may be, however it is sized, in px. Default 220. */
   minHeight?: number
   tools?: React.ReactNode
@@ -85,7 +83,6 @@ export function Canvas({
   inset: insetProp = 0,
   reserve = 0,
   insetRight = 0,
-  subtitle,
   minHeight = MIN_HEIGHT,
   tools,
   onBackgroundClick,
@@ -372,7 +369,6 @@ export function Canvas({
           )}
         </div>
       </div>
-      {subtitle && <div className="idocs-subtitles">{subtitle}</div>}
       {panel}
       {overlay}
       {!fullscreen && (

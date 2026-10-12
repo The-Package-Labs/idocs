@@ -141,6 +141,13 @@ describe('symbolAt', () => {
     })
   })
 
+  it('counts the default view as a use of the view', () => {
+    expect(symbol('defaults:\n  view: ma|in\nviews:\n  main: {}\n')).toMatchObject({
+      id: 'main',
+      namespace: 'view',
+    })
+  })
+
   it('finds the declaration of a symbol', () => {
     const web = all.find((r) => r.id === 'web')!
     const sym = { id: web.id, namespace: 'member' as const, span: web.span }

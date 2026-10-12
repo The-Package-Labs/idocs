@@ -1,0 +1,102 @@
+# yaml-language-server: $schema=../diagram.schema.json
+title: Entities and their fields
+description: |
+  A node with `fields` is an **entity**: a table, a collection, an index. Each row is a field.
+  `#` marks the key, and a blue name with an arrow points at another entity. **Click a card** to
+  see its fields in the drawer.
+
+groups:
+  accounts: { label: Accounts, caption: shop-db }
+  shop: { label: Catalog and orders, caption: shop-db }
+
+nodes:
+  customers:
+    kind: entity
+    in: accounts
+    title: customers
+    pill: TABLE
+    lines: [One row per registered shopper.]
+    fields:
+      - id: { type: uuid, key: true }
+      - email: { type: text, note: Unique. Lowercased before it is stored. }
+      - name: text
+      - created_at: timestamp
+
+  addresses:
+    kind: entity
+    in: accounts
+    title: addresses
+    pill: TABLE
+    lines: [Shipping and billing addresses.]
+    fields:
+      - id: { type: uuid, key: true }
+      - customer_id: { type: uuid, ref: customers.id }
+      - street: text
+      - city: text
+      - country: ISO 3166 code
+
+  idp-token:
+    kind: entity
+    in: accounts
+    status: optional
+    title: IdP token
+    pill: EXTERNAL
+    lines: [Not stored. Read from each request.]
+    fields:
+      - sub: { type: user id, ref: customers.id }
+      - email: string
+      - roles: string[]
+
+  orders:
+    kind: entity
+    in: shop
+    title: orders
+    pill: TABLE
+    lines: [One row per checkout.]
+    fields:
+      - id: { type: uuid, key: true }
+      - customer_id: { type: uuid, ref: customers.id }
+      - shipping_address_id: { type: uuid, ref: addresses.id }
+      - status: pending | paid | shipped | cancelled
+      - total_cents: integer
+      - placed_at: timestamp
+
+  order_items:
+    kind: entity
+    in: shop
+    title: order_items
+    pill: TABLE
+    lines: [The lines of an order. The pair of ids is the key.]
+    fields:
+      - order_id: { type: uuid, key: true, ref: orders.id }
+      - product_id: { type: uuid, key: true, ref: products.id }
+      - quantity: integer
+      - unit_price_cents: integer
+
+  products:
+    kind: entity
+    in: shop
+    title: products
+    pill: TABLE
+    fields:
+      - id: { type: uuid, key: true }
+      - sku: { type: text, note: The code printed on the box. }
+      - name: text
+      - price_cents: integer
+      - category_id: { type: uuid, ref: categories.id }
+
+  categories:
+    kind: entity
+    in: shop
+    title: categories
+    pill: TABLE
+    fields:
+      - id: { type: uuid, key: true }
+      - name: text
+      - parent_id: { type: uuid, ref: categories.id }
+
+edges:
+  # A field's `ref` already draws its relation. Writing the same edge gives it a label.
+  - orders.customer_id -> customers.id: N:1
+  - order_items.order_id -> orders.id: N:1
+  - order_items.product_id -> products.id: N:1

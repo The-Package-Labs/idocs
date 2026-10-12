@@ -34,6 +34,8 @@ A bare string is a title: `catalog: Catalog service`.
 | `title` | The display name. Defaults to the id. Use the name people say in conversation. |
 | `sub` | One monospace line under the title: a port, a stack, a version. |
 | `lines` | A list of short body lines inside the card. |
+| `pill` | A short label in the card's header, like `TABLE` or `ES INDEX`. |
+| `fields` | Makes the card an [entity](../entities/): one row per field, with a name and a type. |
 | `icon` | A logo or icon. See [icons](../../customize/icons/). |
 | `kind` | Gives the node a default icon and colour family. See [kinds](../kinds/). |
 | `family` | The accent colour: `blue`, `amber`, `violet`, `green`, `teal`, `red` or `slate`. Overrides the kind's. |
@@ -42,7 +44,7 @@ A bare string is a title: `catalog: Catalog service`.
 | `badge` | A number or short string on the card's corner. |
 | `uses` | A list of short tags drawn as `uses: a · b`. |
 | `chips` | Small boxes inside the card, such as virtual hosts. |
-| `w` | Card width in pixels. The default is 178. |
+| `w` | Card width in pixels. The default is 178, or 280 for a card with `fields`. |
 | `description` | Markdown for the drawer, written inline. |
 | `doc` | A path to a Markdown file for the drawer. |
 | `links` | A list of `{ label, url }` shown in the drawer. |

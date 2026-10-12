@@ -81,6 +81,7 @@ class Walker {
   }
 
   diagram(root: YAMLMap) {
+    this.ref(getPair(asMap(getPair(root, 'defaults')?.value), 'view')?.value, 'view')
     for (const pair of this.pairs(getPair(root, 'nodes')?.value)) {
       this.ref(getPair(asMap(pair.value), 'in')?.value, 'group')
     }

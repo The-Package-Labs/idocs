@@ -1,0 +1,55 @@
+---
+title: Defaults
+description: Choose how a diagram opens, its view, scenario and mode, and whether the panel and the words on the bar show, from the diagram file.
+tableOfContents:
+  maxHeadingLevel: 3
+---
+
+import Diagram from '@the-package-labs/idocs-astro/Diagram.astro'
+
+A diagram opens on its first view, on its overview, with every scenario waiting to be chosen. The `defaults:` block changes that for one diagram, in the file that describes it, so every page that shows the diagram opens it the same way.
+
+<Diagram name="ref-defaults" />
+
+This diagram opens on the sign-in scenario, drawn as a sequence diagram, with the panel folded to its button:
+
+```yaml
+defaults:
+  scenario: sign-in
+  mode: sequence
+  sidebar: false
+```
+
+## Fields
+
+| Field | Meaning |
+|---|---|
+| `view` | The view shown first. Without it, the view of `scenario`, then the first view. |
+| `scenario` | The scenario selected first. Without it the diagram opens on its overview. It waits for the reader to press play, unless `autoplay` is on. |
+| `mode` | How a scenario is drawn when it has no `mode` of its own: `flow` (packets over the diagram), `sequence` or `story`. |
+| `sidebar` | Whether the panel over the picture, with the outline and the views, starts open. Without it, the panel starts open when there is another view to choose. |
+| `subtitles` | Whether the step's title and description show on the bar while the scenario plays. On by default. |
+| `autoplay` | Play `scenario` as soon as the diagram is on screen. It needs a `scenario`, and readers who ask their system for reduced motion are never autoplayed. |
+
+Every field is optional. The compiler checks that `view` and `scenario` exist, and that a scenario named with a `view` plays on that view.
+
+## Who decides
+
+The page that shows a diagram can always choose otherwise. From the strongest to the weakest:
+
+1. **The reader.** A link to a scenario and step (`#checkout=place-order.3`) opens there, and the controls change anything.
+2. **The page.** The props of [`<Diagram>`](../../embed/diagram-component/): `view`, `scenario`, `mode`, `autoplay`, `sidebar` and `subtitles`. A page that names a view that the default scenario does not play on opens that view with nothing selected.
+3. **The scenario.** Its own `mode:` wins over `defaults.mode`.
+4. **The diagram's defaults.**
+5. **What idocs does without being told.**
+
+<Diagram name="ref-defaults" view="auth-path" mode="story" sidebar hash={false} />
+
+This is the same diagram, shown with `view="auth-path" mode="story" sidebar`. The page asked for another view, so the default scenario, which plays on the overview, is left out, and the panel is open.
+
+## Things to know
+
+- **The mode sticks.** Choosing a scenario that names no `mode` keeps the mode the reader is in, so someone who switched to the sequence view stays there. Going back to the overview returns to `defaults.mode`.
+- **A narrow widget still folds the panel.** `sidebar: true` in the file means "open when there is room". A widget under about 640 px starts folded unless the page passes `sidebar` itself.
+- **Links stay quiet.** The address bar records where the reader is only when it differs from how the diagram opens, so a default scenario does not rewrite the URL of every page that shows it. Choosing the overview of a diagram that opens on a scenario is recorded as `#name=~`.
+- **Nested diagrams use their own.** A diagram that is [shown in place or opened](../nested-diagrams/) from a node takes the view and scenario that node names, and otherwise opens as its own `defaults` say. `autoplay` only applies to a diagram on a page, not one opened from another.

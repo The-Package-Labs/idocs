@@ -2,7 +2,16 @@ import { fileURLToPath } from 'node:url'
 import { type Browser, chromium, type Page } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { serve } from '../../../scripts/static-server.mjs'
-import { chosen, pick, pickView } from './panel'
+import {
+  chosen,
+  closeSteps,
+  openSteps,
+  pick,
+  pickView,
+  scenarioTitles,
+  stepNow,
+  waitForStep,
+} from './panel'
 
 const PORT = 4507
 const BASE = `http://localhost:${PORT}`
@@ -63,7 +72,7 @@ const selectedTab = (page: Page) =>
   page.locator('.idocs-panel-tab[aria-selected="true"]').textContent()
 
 describe('the panel', () => {
-  it('floats inside the viewport, over the left of the picture, with the outline, scenarios and views as tabs', async () => {
+  it('floats inside the viewport, over the left of the picture, with the outline and the views as tabs', async () => {
     const { page, problems, close } = await open()
     const panel = await box(page, '.idocs-panel')
     const frame = await box(page, '.idocs-frame')
@@ -73,13 +82,15 @@ describe('the panel', () => {
     expect(panel.right).toBeLessThan(frame.right - 300)
     expect(panel.y).toBeGreaterThanOrEqual(frame.y)
     expect(panel.bottom).toBeLessThanOrEqual(frame.bottom)
-    // Before a scenario is chosen there is nothing to follow.
-    expect(await tabs(page)).toEqual(['Outline', 'Views', 'Scenarios'])
-    expect(await selectedTab(page)).toBe('Scenarios')
+    // The views are what it has to choose from, so they are what it opens on. Scenarios are not
+    // here at all: they are on the bar under the picture.
+    expect(await tabs(page)).toEqual(['Outline', 'Views'])
+    expect(await selectedTab(page)).toBe('Views')
 
+    // Choosing a scenario leaves the panel as it was.
     await pick(page, 'Place an order')
-    expect(await tabs(page)).toEqual(['Outline', 'Views', 'Scenarios', 'Timeline'])
-    expect(await selectedTab(page)).toBe('Timeline')
+    expect(await tabs(page)).toEqual(['Outline', 'Views'])
+    expect(await selectedTab(page)).toBe('Views')
     expect(await chosen(page)).toBe('Place an order')
     expect(problems).toEqual([])
     await close()
@@ -108,28 +119,17 @@ describe('the panel', () => {
     await close()
   })
 
-  it('gives each scenario a card with its length and how it divides up', async () => {
-    const { page, close } = await open()
-    const cards = page.locator('.idocs-scn')
-    expect(await cards.first().locator('.idocs-scn-title').textContent()).toBe('Overview')
-    const order = cards.filter({ hasText: 'Place an order' })
-    expect(await order.locator('.idocs-scn-meta').textContent()).toMatch(/\d+ steps · \d+ phases/)
-    expect(await order.locator('.idocs-scn-sum').textContent()).not.toBe('')
-    expect(await order.locator('.idocs-scn-bar i').count()).toBeGreaterThan(1)
-    await close()
-  })
-
   it('moves between the tabs with the arrow keys', async () => {
     const { page, close } = await open()
     await page.locator('.idocs-panel-tab[aria-selected="true"]').focus()
     await page.keyboard.press('ArrowLeft')
-    expect(await selectedTab(page)).toBe('Views')
+    expect(await selectedTab(page)).toBe('Outline')
     await page.keyboard.press('ArrowRight')
-    expect(await selectedTab(page)).toBe('Scenarios')
+    expect(await selectedTab(page)).toBe('Views')
     await close()
   })
 
-  it('keeps the tabs where they are when others come and go, so a click never lands on the wrong one', async () => {
+  it('keeps the tabs where they are, whatever is chosen, so a click never lands on the wrong one', async () => {
     const { page, close } = await open()
     const places = () =>
       page.evaluate(() =>
@@ -141,33 +141,31 @@ describe('the panel', () => {
         ),
       )
     const before = await places()
-    // A scenario brings a Timeline tab...
     await pick(page, 'Place an order')
-    const withScenario = await places()
-    expect(withScenario.Outline).toBe(before.Outline)
-    expect(withScenario.Views).toBe(before.Views)
-    expect(withScenario.Scenarios).toBe(before.Scenarios)
-    // ...after the tabs that were there, never in front of them.
-    expect(withScenario.Timeline).toBeGreaterThan(withScenario.Scenarios!)
-
-    // And a view with no scenarios takes the Scenarios tab away, and nothing else moves.
+    expect(await places()).toEqual(before)
     await pickView(page, 'Backend only')
-    await page.waitForFunction(() => document.querySelectorAll('.idocs-panel-tab').length === 2)
-    const without = await places()
-    expect(without.Outline).toBe(before.Outline)
-    expect(without.Views).toBe(before.Views)
-    // Whatever it was aimed at, a view is never followed by the timeline of a scenario.
-    expect(await selectedTab(page)).not.toBe('Timeline')
+    await page.waitForFunction(() => !document.querySelector('.idocs-bar'))
+    expect(await places()).toEqual(before)
     await close()
   })
 
-  it('lists the views, and switching one shows its own scenarios', async () => {
+  it('lists the views, and switching one shows its own scenarios on the bar', async () => {
     const { page, close } = await open()
     const before = await page.locator('[data-node]').count()
     await pickView(page, 'Backend only')
     await page.waitForFunction((n) => document.querySelectorAll('[data-node]').length < n, before)
-    // The panel goes back to what to look at, not to a timeline that no longer exists.
-    expect(await selectedTab(page)).not.toBe('Timeline')
+    // The panel stays on the views; this one has no scenarios, so the bar has nothing to offer.
+    expect(await selectedTab(page)).toBe('Views')
+    expect(await page.locator('.idocs-bar').count()).toBe(0)
+    await pickView(page, 'Overview')
+    await page.waitForSelector('.idocs-bar')
+    expect(await scenarioTitles(page)).toEqual([
+      'Overview',
+      'Browse a product (cache hit)',
+      'Browse a product (cache miss)',
+      'Place an order',
+      'Card declined',
+    ])
     await close()
   })
 })
@@ -310,6 +308,8 @@ describe('the outline', () => {
   it('shows what a node holds, and the nodes of a diagram shown in place', async () => {
     const { page, problems, close } = await open('/format/nested-diagrams/')
     await page.waitForSelector('.idocs-panel')
+    // This diagram has one view, so its panel starts folded: open it.
+    await page.getByRole('button', { name: 'Show the panel' }).first().click()
     await page.locator('.idocs-panel-tab', { hasText: 'Outline' }).first().click()
     const orders = row(page, 'Order service').first()
     await orders.hover()
@@ -330,45 +330,269 @@ describe('the outline', () => {
   })
 })
 
-describe('the timeline', () => {
-  it('keeps the step in progress in view inside the panel and never scrolls the page', async () => {
+describe('the bar under the picture', () => {
+  it('is the bottom edge of the viewport: as wide as the picture and attached to it', async () => {
+    const { page, close } = await open()
+    const frame = await box(page, '.idocs-frame')
+    const bar = await box(page, '.idocs-bar')
+    expect(Math.abs(bar.x - frame.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs(bar.w - frame.w)).toBeLessThanOrEqual(1)
+    expect(Math.abs(bar.y - frame.bottom)).toBeLessThanOrEqual(2)
+    // Nothing is chosen, so it only offers the scenarios.
+    expect(await page.locator('.idocs-sel-label').textContent()).toBe('Choose a scenario')
+    expect(await page.locator('.idocs-bar-hint').count()).toBe(1)
+    expect(await page.locator('.idocs-slider').count()).toBe(0)
+    await close()
+  })
+
+  it('has no bar on a view without scenarios, and the picture is a whole box again', async () => {
+    const { page, close } = await open()
+    await pickView(page, 'Backend only')
+    await page.waitForFunction(() => !document.querySelector('.idocs-bar'))
+    expect(await page.locator('.idocs-workspace.has-bar').count()).toBe(0)
+    await close()
+  })
+
+  it('chooses a scenario from a menu that says how long each is, with the keyboard too', async () => {
+    const { page, close } = await open()
+    await page.locator('.idocs-sel-btn').click()
+    const items = page.locator('.idocs-sel-item')
+    expect(await items.first().locator('.idocs-sel-title').textContent()).toBe('Overview')
+    expect(await items.first().getAttribute('aria-checked')).toBe('true')
+    const order = items.filter({ hasText: 'Place an order' })
+    expect(await order.locator('.idocs-sel-meta').textContent()).toMatch(/\d+ steps · \d+ phases/)
+    expect(await order.locator('.idocs-sel-sum').textContent()).not.toBe('')
+    // It opens upward, over the picture.
+    const menu = await box(page, '.idocs-sel-pop')
+    const bar = await box(page, '.idocs-bar')
+    expect(menu.bottom).toBeLessThanOrEqual(bar.y + 12)
+
+    // The arrows move, Enter chooses, and the menu goes away with the choice.
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('Enter')
+    await page.waitForSelector('.idocs-sel-pop', { state: 'detached' })
+    expect(await page.locator('.idocs-sel-label').textContent()).toBe('Place an order')
+
+    // Escape puts it away without choosing, and a press outside does too.
+    await page.locator('.idocs-sel-btn').click()
+    await page.keyboard.press('Escape')
+    await page.waitForSelector('.idocs-sel-pop', { state: 'detached' })
+    expect(await page.locator('.idocs-sel-label').textContent()).toBe('Place an order')
+    await page.locator('.idocs-sel-btn').click()
+    await page.mouse.click(5, 5)
+    await page.waitForSelector('.idocs-sel-pop', { state: 'detached' })
+
+    // The overview is the way back to the diagram on its own.
+    await pick(page, 'Overview')
+    expect(await page.locator('.idocs-sel-label').textContent()).toBe('Choose a scenario')
+    expect(await page.locator('.idocs-slider').count()).toBe(0)
+    await close()
+  })
+
+  it('says what the scenario is about before it starts, and the step in progress once it has', async () => {
+    const { page, close } = await open('/examples/checkout/#checkout=place-order')
+    await page.waitForSelector('.idocs-bar .idocs-slider')
+    // Linked to, not started: it waits for the reader, and says how long it is.
+    expect(await page.locator('.idocs-bar-meta').textContent()).toMatch(/9 steps · 3 phases/)
+    expect(await page.locator('.idocs-bar-note').textContent()).not.toBe('')
+    expect(await page.locator('.idocs-bar-title').count()).toBe(0)
+    expect(await page.locator('.idocs-bar .idocs-btn.is-primary').textContent()).toBe('Play')
+
+    await page.locator('.idocs-bar .idocs-btn.is-primary').click()
+    await waitForStep(page)
+    // A chip with the phase, the title of the step, and who talks to whom.
+    expect(await page.locator('.idocs-bar-chip').textContent()).toMatch(/^I · /)
+    expect(await page.locator('.idocs-bar-title b').textContent()).not.toBe('')
+    expect(await page.locator('.idocs-bar-route').textContent()).toContain('→')
+    expect(await page.locator('.idocs-time').textContent()).toMatch(/^step \d\/9 · /)
+    await close()
+  })
+
+  it('does not change height from one step to the next', async () => {
     const { page, close } = await open()
     await pick(page, 'Place an order')
-    await page.waitForSelector('.idocs-step.is-active')
+    await waitForStep(page)
+    const heights = new Set<number>()
+    for (let i = 0; i < 9; i++) {
+      await page.locator('button[aria-label="Next step"]').dispatchEvent('click')
+      await page.waitForTimeout(300)
+      heights.add(Math.round((await box(page, '.idocs-bar')).h))
+    }
+    expect(heights.size).toBe(1)
+    await close()
+  })
+
+  it('keeps its words in every presentation, and hides them with CC', async () => {
+    const { page, close } = await open()
+    await pick(page, 'Place an order')
+    await page.waitForSelector('.idocs-bar-title')
+    const cc = page.locator('.idocs-bar .idocs-cc')
+    expect(await cc.getAttribute('aria-pressed')).toBe('true')
+    await page.locator('.idocs-modes button:has-text("Story")').click()
+    await page.waitForSelector('.idocs-story-grid')
+    expect(await page.locator('.idocs-bar-title').count()).toBe(1)
+    await cc.click()
+    expect(await cc.getAttribute('aria-pressed')).toBe('false')
+    expect(await page.locator('.idocs-bar-title').count()).toBe(0)
+    expect(await page.locator('.idocs-bar-words').count()).toBe(0)
+    // The controls are still there without the words.
+    expect(await page.locator('.idocs-slider').count()).toBe(1)
+    await cc.click()
+    await page.waitForSelector('.idocs-bar-title')
+    await close()
+  })
+})
+
+describe('the slider', () => {
+  const slider = (page: Page) => page.locator('.idocs-slider')
+
+  it('has a section for each phase and a segment of the same width for each step', async () => {
+    const { page, close } = await open()
+    await pick(page, 'Place an order')
+    await page.waitForSelector('.idocs-slider')
+    expect(await page.locator('.idocs-slider-section').count()).toBe(3)
+    // 9 steps, two of them in one parallel block, so one stop for both.
+    const widths = await page
+      .locator('.idocs-slider-cell')
+      .evaluateAll((cells) => cells.map((c) => Math.round(c.getBoundingClientRect().width)))
+    expect(widths).toHaveLength(8)
+    expect(Math.max(...widths) - Math.min(...widths)).toBeLessThanOrEqual(1)
+    // Phases are separated by more than steps are: the first of a section starts later.
+    const gaps = await page.evaluate(() => {
+      const cells = [...document.querySelectorAll('.idocs-slider-cell > span')].map((c) =>
+        c.getBoundingClientRect(),
+      )
+      return cells.slice(1).map((c, i) => c.left - cells[i]!.right)
+    })
+    expect(Math.max(...gaps)).toBeGreaterThan(Math.min(...gaps) + 2)
+    await close()
+  })
+
+  it('goes to the step that is clicked, and tells which one is under the pointer', async () => {
+    const { page, close } = await open()
+    await pick(page, 'Place an order')
+    await page.waitForSelector('.idocs-slider')
+    const r = await box(page, '.idocs-slider')
+    // Pointing is enough for a tip: the phase, the number and the title of the step.
+    await page.mouse.move(r.x + r.w * 0.55, r.y + r.h / 2)
+    await page.waitForSelector('.idocs-slider-tip')
+    expect(await page.locator('.idocs-slider-tip').textContent()).toMatch(/^[IVX]+ · .+ — \d+\. .+/)
+    // Pressing goes there, and stops the scenario so the reader can look.
+    await page.mouse.click(r.x + r.w * 0.55, r.y + r.h / 2)
+    expect(await slider(page).getAttribute('aria-valuenow')).toBe('5')
+    expect(await page.locator('.idocs-bar .idocs-btn.is-primary').textContent()).toMatch(/Resume/)
+    expect(await slider(page).getAttribute('aria-valuetext')).toMatch(/^Step \d of 9: /)
+    // The fill reaches what was clicked.
+    const filled = await page
+      .locator('.idocs-slider-cell b')
+      .evaluateAll((bs) =>
+        bs.map((b) => Math.round((b as HTMLElement).getBoundingClientRect().width)),
+      )
+    expect(filled.filter((w) => w > 1).length).toBeGreaterThanOrEqual(4)
+    await close()
+  })
+
+  it('can be dragged, and moved from the keyboard', async () => {
+    const { page, close } = await open()
+    await pick(page, 'Place an order')
+    await page.waitForSelector('.idocs-slider')
+    const r = await box(page, '.idocs-slider')
+    await page.mouse.move(r.x + 4, r.y + r.h / 2)
+    await page.mouse.down()
+    await page.mouse.move(r.x + r.w * 0.9, r.y + r.h / 2, { steps: 6 })
+    await page.mouse.up()
+    expect(await slider(page).getAttribute('aria-valuenow')).toBe('8')
+
+    await slider(page).focus()
+    await page.keyboard.press('Home')
+    expect(await slider(page).getAttribute('aria-valuenow')).toBe('1')
+    await page.keyboard.press('End')
+    expect(await slider(page).getAttribute('aria-valuenow')).toBe('8')
+    await page.keyboard.press('Home')
+    await page.keyboard.press('ArrowRight')
+    await waitForStep(page)
+    await close()
+  })
+})
+
+describe('the list of steps', () => {
+  it('opens upward from the bar with the story in a few words and every step, and goes away again', async () => {
+    const { page, close } = await open()
+    await pick(page, 'Place an order')
+    await waitForStep(page)
+    // Nothing is listed until it is asked for.
+    expect(await page.locator('.idocs-step').count()).toBe(0)
+    await openSteps(page)
+    expect(await page.locator('.idocs-steps-btn').getAttribute('aria-expanded')).toBe('true')
+    expect(await page.locator('.idocs-panel-summary-title').textContent()).toBe(
+      'The story in one breath',
+    )
+    expect(await page.locator('.idocs-steps-pop .idocs-step').count()).toBe(9)
+    expect(await page.locator('.idocs-steps-pop .idocs-phase.is-fold').count()).toBe(3)
+    const pop = await box(page, '.idocs-steps-pop')
+    const bar = await box(page, '.idocs-bar')
+    const frame = await box(page, '.idocs-frame')
+    expect(pop.bottom).toBeLessThanOrEqual(bar.y + 1)
+    expect(pop.y).toBeGreaterThanOrEqual(frame.y)
+
+    // Escape folds it away and puts the reader back on the button.
+    await page.keyboard.press('Escape')
+    await page.waitForSelector('.idocs-steps-pop', { state: 'detached' })
+    expect(await page.evaluate(() => document.activeElement?.className)).toContain(
+      'idocs-steps-btn',
+    )
+    // So does a press on the picture.
+    await openSteps(page)
+    await page.mouse.click(frame.x + frame.w / 2, frame.y + 6)
+    await page.waitForSelector('.idocs-steps-pop', { state: 'detached' })
+    await close()
+  })
+
+  it('plays the step that is clicked', async () => {
+    const { page, close } = await open()
+    await pick(page, 'Place an order')
+    await openSteps(page)
+    await page.locator('.idocs-steps-pop .idocs-step').nth(4).dispatchEvent('click')
+    await page.waitForFunction(() =>
+      /step 5\//.test(document.querySelector('.idocs-time')!.textContent!),
+    )
+    expect(await stepNow(page)).toBe(5)
+    await close()
+  })
+
+  it('keeps the step in progress in view inside itself and never scrolls the page', async () => {
+    const { page, close } = await open()
+    await pick(page, 'Place an order')
+    await openSteps(page)
     const scrolled = await page.evaluate(() => scrollY)
-    // Step through to the end: the active step is always inside the panel's visible area.
+    const inside = () =>
+      page.evaluate(() => {
+        const body = document.querySelector('.idocs-steps-pop-body')!.getBoundingClientRect()
+        const step = document.querySelector('.idocs-step.is-active')?.getBoundingClientRect()
+        return !step || (step.top >= body.top - 2 && step.bottom <= body.bottom + 2)
+      })
     for (let i = 0; i < 12; i++) {
       // Dispatched, not clicked: the page writes the step to the address bar whenever playback
       // stops, and a click that overlaps that makes Playwright retry with the button forced to the
       // edge of the window, which scrolls the page. That is the test's doing, not the page's.
       await page.locator('button[aria-label="Next step"]').dispatchEvent('click')
-      await page.waitForTimeout(450)
-      const inside = await page.evaluate(() => {
-        const body = document.querySelector('.idocs-panel-body')!.getBoundingClientRect()
-        const step = document.querySelector('.idocs-step.is-active')?.getBoundingClientRect()
-        return !step || (step.top >= body.top - 2 && step.bottom <= body.bottom + 2)
-      })
-      expect(inside, `step ${i + 1}`).toBe(true)
+      // The list scrolls smoothly, and for as long as the distance takes: wait for it to settle.
+      await page
+        .waitForFunction(
+          () => {
+            const body = document.querySelector('.idocs-steps-pop-body')!.getBoundingClientRect()
+            const step = document.querySelector('.idocs-step.is-active')?.getBoundingClientRect()
+            return !step || (step.top >= body.top - 2 && step.bottom <= body.bottom + 2)
+          },
+          null,
+          { timeout: 2500 },
+        )
+        .catch(() => {})
+      expect(await inside(), `step ${i + 1}`).toBe(true)
     }
     expect(await page.evaluate(() => scrollY)).toBe(scrolled)
-    await close()
-  })
-
-  it('has the summary at the top, and the player docked under it', async () => {
-    const { page, close } = await open()
-    await pick(page, 'Place an order')
-    await page.waitForSelector('.idocs-panel .idocs-player')
-    expect(await page.locator('.idocs-panel-summary-title').textContent()).toBe(
-      'The story in one breath',
-    )
-    const panel = await box(page, '.idocs-panel')
-    const player = await box(page, '.idocs-panel .idocs-player')
-    expect(player.bottom).toBeLessThanOrEqual(panel.bottom + 1)
-    expect(player.x).toBeGreaterThanOrEqual(panel.x)
-    // Nothing of the old stacked layout is left outside the viewport.
-    expect(
-      await page.locator('.idocs-level > .idocs-player, .idocs-workspace ~ .idocs-steps').count(),
-    ).toBe(0)
     await close()
   })
 })
@@ -376,11 +600,12 @@ describe('the timeline', () => {
 describe('phases', () => {
   const head = (page: Page, title: string) =>
     page.locator('.idocs-phase.is-fold').filter({ hasText: title })
-  const steps = (page: Page) => page.locator('.idocs-panel .idocs-step')
+  const steps = (page: Page) => page.locator('.idocs-steps-pop .idocs-step')
 
-  it('are headers in the timeline that fold their steps away, and open them again', async () => {
+  it('are headers in the list of steps that fold them away, and open them again', async () => {
     const { page, close } = await open()
     await pick(page, 'Place an order')
+    await openSteps(page)
     const all = await steps(page).count()
     const charge = head(page, 'Charge')
     expect(await charge.getAttribute('aria-expanded')).toBe('true')
@@ -402,6 +627,7 @@ describe('phases', () => {
   it('say how far a folded phase has got, and what is happening in it, while it plays', async () => {
     const { page, close } = await open()
     await pick(page, 'Place an order')
+    await openSteps(page)
     const charge = head(page, 'Charge')
     // Play step 3, the first of the Charge phase, then fold the phase while it is in progress.
     await steps(page).nth(2).click()
@@ -410,14 +636,15 @@ describe('phases', () => {
     expect(await charge.getAttribute('class')).toContain('is-active')
     expect(await charge.locator('.idocs-phase-caption').textContent()).toMatch(/^now: /)
     expect(await charge.locator('.idocs-phase-count').textContent()).toMatch(/^\d\/3$/)
-    // The scenario carries on playing in the picture.
-    expect(await page.locator('.idocs-subtitle').count()).toBe(1)
+    // The scenario carries on playing, and the bar still says what it is doing.
+    expect(await page.locator('.idocs-bar-title').count()).toBe(1)
     await close()
   })
 
   it('can all be folded or shown from the bar above the steps', async () => {
     const { page, close } = await open()
     await pick(page, 'Place an order')
+    await openSteps(page)
     await page.getByRole('button', { name: 'Fold every phase away' }).click()
     expect(await steps(page).count()).toBe(0)
     expect(await page.locator('.idocs-phase.is-fold[aria-expanded="false"]').count()).toBe(3)
@@ -429,7 +656,9 @@ describe('phases', () => {
   it('are folded the same way in the sequence and the story, and belong to one scenario', async () => {
     const { page, close } = await open()
     await pick(page, 'Place an order')
+    await openSteps(page)
     await head(page, 'Charge').click()
+    await closeSteps(page)
 
     await page.locator('.idocs-modes button:has-text("Sequence")').click()
     await page.waitForSelector('.idocs-seq svg')
@@ -449,10 +678,11 @@ describe('phases', () => {
     // Lanes and the boxes of the phases still shown are all there, and connectors are measured.
     await page.waitForSelector('.idocs-slink')
 
-    // Open it from the story: the timeline shows it again too.
+    // Open it from the story: the list of steps shows it again too.
     await page.locator('.idocs-phase-label.is-strip').click()
     expect(await page.locator('.idocs-phase-label.is-strip').count()).toBe(0)
     await page.locator('.idocs-modes button:has-text("Flow")').click()
+    await openSteps(page)
     expect(await head(page, 'Charge').getAttribute('aria-expanded')).toBe('true')
 
     // Another scenario starts with everything shown.
@@ -471,47 +701,6 @@ describe('phases', () => {
     await page.locator('.idocs-phase-fold').nth(1).click()
     expect(await page.locator('.idocs-sbox').count()).toBeLessThan(boxes)
     expect(await page.locator('.idocs-phase-label.is-strip').count()).toBe(1)
-    await close()
-  })
-})
-
-describe('subtitles', () => {
-  it('are on by default, say the step and its note, and can be turned off from the player', async () => {
-    const { page, close } = await open()
-    await pick(page, 'Place an order')
-    await page.waitForSelector('.idocs-subtitle')
-    const text = (await page.locator('.idocs-subtitle').first().textContent()) ?? ''
-    expect(text).toMatch(/\d+\/\d+/)
-    // They sit over the bottom of the viewport, in what the panel leaves of it.
-    const frame = await box(page, '.idocs-frame')
-    const subtitle = await box(page, '.idocs-subtitles')
-    const panel = await box(page, '.idocs-panel')
-    expect(subtitle.bottom).toBeLessThanOrEqual(frame.bottom)
-    expect(subtitle.y).toBeGreaterThan(frame.y + frame.h / 2)
-    expect(subtitle.x).toBeGreaterThanOrEqual(panel.right - 1)
-
-    const cc = page.locator('.idocs-panel .idocs-cc')
-    expect(await cc.getAttribute('aria-pressed')).toBe('true')
-    await cc.click()
-    expect(await cc.getAttribute('aria-pressed')).toBe('false')
-    expect(await page.locator('.idocs-subtitle').count()).toBe(0)
-    await cc.click()
-    await page.waitForSelector('.idocs-subtitle')
-    await close()
-  })
-
-  it('can also be turned off from the viewport’s toolbar, and follow the story view', async () => {
-    const { page, close } = await open()
-    await pick(page, 'Place an order')
-    await page.waitForSelector('.idocs-subtitle')
-    const toolbar = page.locator('.idocs-toolbar button:has-text("CC")')
-    await toolbar.click()
-    expect(await page.locator('.idocs-subtitle').count()).toBe(0)
-    await toolbar.click()
-    await page.locator('.idocs-modes button:has-text("Story")').click()
-    await page.waitForSelector('.idocs-story-grid')
-    // Over the story, inside its frame, like over the picture.
-    await page.waitForSelector('.idocs-scrollframe > .idocs-subtitles .idocs-subtitle')
     await close()
   })
 })
@@ -541,8 +730,9 @@ describe('the sequence and the story', () => {
     await pick(page, 'One read request')
     await page.waitForSelector('.idocs-story-grid')
     const scrolled = await page.evaluate(() => scrollY)
+    await openSteps(page)
     // Dispatched, because a click would scroll the page to bring the step into view first.
-    await page.locator('.idocs-step').last().dispatchEvent('click')
+    await page.locator('.idocs-steps-pop .idocs-step').last().dispatchEvent('click')
     await page.waitForTimeout(900)
     const visible = await page.evaluate(() => {
       const view = document.querySelector('.idocs-scroller')!.getBoundingClientRect()
@@ -556,25 +746,26 @@ describe('the sequence and the story', () => {
 })
 
 describe('folding the panel', () => {
-  it('leaves a pill with the player’s buttons, gives the room to the picture, and opens again', async () => {
+  it('leaves one button, gives the room to the picture, keeps the bar, and opens again', async () => {
     const { page, close } = await open()
     await pick(page, 'Place an order')
     const frame = await box(page, '.idocs-frame')
     const left = await pictureLeft(page)
     await page.getByRole('button', { name: 'Hide the panel' }).click()
     await page.waitForSelector('.idocs-panel.is-folded')
-    expect(await page.locator('.idocs-panel.is-folded [aria-label="Next step"]').count()).toBe(1)
-    expect(await page.locator('.idocs-panel.is-folded [aria-label="Previous step"]').count()).toBe(
-      1,
-    )
+    // Only the button is left: what is playing is on the bar, which is where its controls are.
+    expect(await page.locator('.idocs-panel.is-folded button').count()).toBe(1)
+    expect(await page.locator('.idocs-panel-now, .idocs-rail-player').count()).toBe(0)
+    expect(await page.locator('.idocs-bar .idocs-sel-label').textContent()).toBe('Place an order')
+    expect(await page.locator('.idocs-bar [aria-label="Next step"]').count()).toBe(1)
     // The frame stays as it is, so the page does not jump; the picture grows into the room.
     const after = await box(page, '.idocs-frame')
     expect(after.h).toBe(frame.h)
     expect(after.w).toBe(frame.w)
     await page.waitForTimeout(600)
     expect(await pictureLeft(page)).toBeLessThan(left - 100)
-    // The pill still plays.
-    await page.locator('.idocs-panel.is-folded .idocs-btn.is-primary').click()
+    // The bar still plays.
+    await page.locator('.idocs-bar .idocs-btn.is-primary').click()
 
     await page.getByRole('button', { name: 'Show the panel' }).click()
     await page.waitForSelector('.idocs-panel-tab')
@@ -582,8 +773,8 @@ describe('folding the panel', () => {
   })
 })
 
-describe('the separators in the sequence and story views', () => {
-  it('run between the lanes and at their edges, not through the middle of them', async () => {
+describe('the dotted lines of the story and sequence views', () => {
+  it('run between the lanes of the story, and through the middle of each header of the sequence', async () => {
     const { page, close } = await open()
     await pick(page, 'Place an order')
     await page.locator('.idocs-modes button:has-text("Story")').click()
@@ -606,7 +797,20 @@ describe('the separators in the sequence and story views', () => {
     await page.locator('.idocs-modes button:has-text("Sequence")').click()
     await page.waitForSelector('.idocs-seq svg')
     const actors = await page.locator('.idocs-seq .seq-title').count()
-    expect(await page.locator('.idocs-seq .seq-sep').count()).toBe(actors + 1)
+    expect(await page.locator('.idocs-seq .seq-lifeline').count()).toBe(actors)
+    // A lifeline is the middle of its header, and the arrows start and end on it.
+    const centred = await page.evaluate(() => {
+      const heads = [...document.querySelectorAll('.idocs-seq svg > g > rect')]
+        .map((r) => r.getBoundingClientRect())
+        .filter((r) => r.height > 45)
+      return [...document.querySelectorAll('.idocs-seq .seq-lifeline')].map((l, i) => {
+        const x = l.getBoundingClientRect().x
+        const head = heads[i]!
+        return Math.abs(x - (head.x + head.width / 2)) < 1.5
+      })
+    })
+    expect(centred).toHaveLength(actors)
+    expect(centred.every(Boolean)).toBe(true)
     await close()
   })
 })
@@ -632,6 +836,85 @@ describe('a narrow widget', () => {
     expect(panel.w).toBeGreaterThan(frame.w - 30)
     expect(await overflow()).toBeLessThanOrEqual(0)
     expect(problems).toEqual([])
+    await close()
+  })
+
+  it('wraps the bar into rows that fit, with its menu and list inside the window', async () => {
+    const { page, problems, close } = await open('/examples/checkout/', 560)
+    const overflow = () =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      )
+    await pick(page, 'Place an order')
+    await waitForStep(page)
+    const bar = await box(page, '.idocs-bar')
+    const frame = await box(page, '.idocs-frame')
+    expect(Math.abs(bar.w - frame.w)).toBeLessThanOrEqual(1)
+    // The slider has a row of its own, as wide as the bar allows.
+    const slider = await box(page, '.idocs-slider')
+    expect(slider.w).toBeGreaterThan(bar.w - 40)
+    expect(
+      await page.locator('.idocs-bar').evaluate((e) => e.scrollWidth <= e.clientWidth + 1),
+    ).toBe(true)
+    await page.locator('.idocs-slider').hover({ position: { x: slider.w - 4, y: 10 } })
+    await page.waitForSelector('.idocs-slider-tip')
+    expect(await overflow()).toBeLessThanOrEqual(0)
+    await openSteps(page)
+    const pop = await box(page, '.idocs-steps-pop')
+    expect(pop.x).toBeGreaterThanOrEqual(bar.x)
+    expect(pop.right).toBeLessThanOrEqual(bar.right + 1)
+    expect(await overflow()).toBeLessThanOrEqual(0)
+    expect(problems).toEqual([])
+    await close()
+  })
+})
+
+describe('the interfaces table', () => {
+  const head = (page: Page) => page.locator('.idocs-ifaces-head')
+
+  it('starts folded to a bar that says what is in it, and opens and folds with a click', async () => {
+    const { page, problems, close } = await open()
+    await page.locator('.idocs-ifaces').scrollIntoViewIfNeeded()
+    expect(await head(page).getAttribute('aria-expanded')).toBe('false')
+    expect(await head(page).textContent()).toContain('Interfaces')
+    expect(await head(page).textContent()).toContain('13 connections')
+    expect(await page.locator('.idocs-ifaces table').count()).toBe(0)
+
+    await head(page).click()
+    expect(await head(page).getAttribute('aria-expanded')).toBe('true')
+    expect(await page.locator('.idocs-ifaces tbody tr').count()).toBe(13)
+    // The bar is the top of the table, not a second box above it.
+    const joined = await page.evaluate(() => {
+      const bar = document.querySelector('.idocs-ifaces-head')!.getBoundingClientRect()
+      const table = document
+        .querySelector('.idocs-ifaces .idocs-table-wrap')!
+        .getBoundingClientRect()
+      return Math.abs(table.top - bar.bottom)
+    })
+    expect(joined).toBeLessThanOrEqual(1)
+
+    // The row still lights up its connection in the picture.
+    await page.locator('.idocs-ifaces tbody tr').first().hover()
+    await page.waitForSelector('.idocs-frame .is-hl')
+
+    await head(page).click()
+    expect(await head(page).getAttribute('aria-expanded')).toBe('false')
+    expect(await page.locator('.idocs-ifaces table').count()).toBe(0)
+    expect(problems).toEqual([])
+    await close()
+  })
+
+  it('is reachable from the keyboard, and stays as the reader left it when the view changes', async () => {
+    const { page, close } = await open()
+    await head(page).focus()
+    await page.keyboard.press('Enter')
+    expect(await head(page).getAttribute('aria-expanded')).toBe('true')
+    await pickView(page, 'Backend only')
+    // This view lists no interfaces, so there is no bar for it.
+    await page.waitForFunction(() => !document.querySelector('.idocs-ifaces'))
+    await pickView(page, 'Overview')
+    await page.waitForSelector('.idocs-ifaces')
+    expect(await head(page).getAttribute('aria-expanded')).toBe('true')
     await close()
   })
 })

@@ -134,6 +134,7 @@ export const NodeCard = memo(function NodeCard({
         state.hidden && 'is-hidden',
         state.origin && 'is-origin',
         inside && 'has-inside',
+        node.fields.length > 0 && 'has-fields',
       )}
       style={style}
       data-node={interactive ? id : undefined}
@@ -142,7 +143,7 @@ export const NodeCard = memo(function NodeCard({
       tabIndex={interactive ? 0 : undefined}
       aria-label={
         interactive
-          ? `${node.title}${node.sub ? `, ${node.sub}` : ''}. Open details${inside ? `. Holds a diagram: ${inside.title}` : ''}`
+          ? `${node.title}${node.sub ? `, ${node.sub}` : ''}${node.fields.length ? `, ${node.fields.length} fields` : ''}. Open details${inside ? `. Holds a diagram: ${inside.title}` : ''}`
           : undefined
       }
       aria-hidden={measure ? true : undefined}
@@ -185,6 +186,7 @@ export const NodeCard = memo(function NodeCard({
           <div className="idocs-node-title">{node.title}</div>
           {node.sub && <div className="idocs-node-sub">{node.sub}</div>}
         </div>
+        {node.pill && <span className="idocs-pill is-tag">{node.pill}</span>}
         {node.status !== 'built' && (
           <span className={cx('idocs-pill', `st-${node.status}`)}>{node.status}</span>
         )}
@@ -193,6 +195,25 @@ export const NodeCard = memo(function NodeCard({
         <div className="idocs-node-lines">
           {node.lines.map((l) => (
             <div key={l}>{l}</div>
+          ))}
+        </div>
+      )}
+      {node.fields.length > 0 && (
+        <div className="idocs-fields">
+          {node.fields.map((f) => (
+            <div
+              key={f.name}
+              className={cx('idocs-field', f.key && 'is-key', f.ref && 'is-ref')}
+              data-field={f.name}
+              title={f.note}
+            >
+              <span className="idocs-field-name">
+                {f.key && <b aria-hidden="true">#</b>}
+                {f.name}
+                {f.ref && <i aria-hidden="true">→</i>}
+              </span>
+              {f.type && <span className="idocs-field-type">{f.type}</span>}
+            </div>
           ))}
         </div>
       )}

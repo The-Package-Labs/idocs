@@ -151,3 +151,177 @@ edges:
     expect(d.message).toContain('"ghost"')
   })
 })
+
+describe('entities', () => {
+  const entities = `title: T
+nodes:
+  customers:
+    kind: entity
+    fields:
+      - id: { type: uuid, key: true }
+      - email: text
+      - meta.version: integer
+      - notes
+      - nothing:
+  orders:
+    kind: entity
+    pill: TABLE
+    fields:
+      - id: { type: uuid, key: true, note: The key. }
+      - customer_id: { type: uuid, ref: customers.id }
+      - name: text
+      - type
+  plain: { title: Plain }
+`
+  const errors = (text: string) =>
+    compileText(text).diagnostics.filter((d) => d.severity === 'error')
+
+  it('reads the three shapes of a field', () => {
+    const r = compileText(entities)
+    expect(errors(entities)).toEqual([])
+    expect(r.diagram!.nodes.customers!.fields).toEqual([
+      { name: 'id', type: 'uuid', key: true },
+      { name: 'email', type: 'text' },
+      { name: 'meta.version', type: 'integer' },
+      { name: 'notes' },
+      { name: 'nothing' },
+    ])
+    expect(r.diagram!.nodes.orders!.fields[0]).toEqual({
+      name: 'id',
+      type: 'uuid',
+      key: true,
+      note: 'The key.',
+    })
+  })
+
+  it('lets a field be called name or type', () => {
+    const orders = compileText(entities).diagram!.nodes.orders!
+    expect(orders.fields.slice(2)).toEqual([{ name: 'name', type: 'text' }, { name: 'type' }])
+  })
+
+  it('keeps the pill, and makes entity cards wider', () => {
+    const { nodes } = compileText(entities).diagram!
+    expect(nodes.orders!.pill).toBe('TABLE')
+    expect(nodes.orders!.w).toBe(280)
+    expect(nodes.plain!.w).toBeUndefined()
+    expect(nodes.plain!.fields).toEqual([])
+  })
+
+  it('draws a relation for a ref and keeps the ref on the field', () => {
+    const d = compileText(entities).diagram!
+    expect(d.nodes.orders!.fields[1]!.ref).toEqual({ node: 'customers', field: 'id' })
+    expect(Object.values(d.edges)).toEqual([
+      expect.objectContaining({
+        id: 'ref:orders.customer_id',
+        from: 'orders',
+        to: 'customers',
+        fromField: 'customer_id',
+        toField: 'id',
+        kind: 'relation',
+      }),
+    ])
+    expect(d.views[0]!.edgeIds).toEqual(['ref:orders.customer_id'])
+  })
+
+  it('takes an edge written by hand in place of the one a ref would draw', () => {
+    const r = compileText(`${entities}edges:\n  - orders.customer_id -> customers.id: N:1\n`)
+    expect(errors(entities)).toEqual([])
+    const edges = Object.values(r.diagram!.edges)
+    expect(edges).toHaveLength(1)
+    expect(edges[0]).toMatchObject({
+      label: 'N:1',
+      from: 'orders',
+      fromField: 'customer_id',
+      to: 'customers',
+      toField: 'id',
+    })
+    // The same, the other way round.
+    const back = compileText(`${entities}edges:\n  - customers.id -> orders.customer_id\n`)
+    expect(Object.keys(back.diagram!.edges)).toEqual(['e1'])
+  })
+
+  it('accepts a ref to a node, and one to its own node without drawing it', () => {
+    const r = compileText(`title: T
+nodes:
+  tree: { fields: [{ parent: { ref: tree.id } }, id] }
+  leaf: { fields: [{ tree: { ref: tree } }] }
+`)
+    expect(r.diagnostics).toEqual([])
+    expect(r.diagram!.nodes.leaf!.fields[0]!.ref).toEqual({ node: 'tree' })
+    expect(Object.keys(r.diagram!.edges)).toEqual(['ref:leaf.tree'])
+  })
+
+  it('resolves dotted field names and lets a node id win', () => {
+    const r = compileText(`title: T
+nodes:
+  a: { fields: [meta.version, id] }
+  b: { fields: [x] }
+  a.id: { title: A dot id }
+edges:
+  - b.x -> a.meta.version
+  - b.x -> a.id
+`)
+    expect(r.diagnostics).toEqual([])
+    const [first, second] = Object.values(r.diagram!.edges)
+    expect(first).toMatchObject({ to: 'a', toField: 'meta.version' })
+    expect(second).toMatchObject({ to: 'a.id', toField: undefined })
+  })
+
+  it('names an unknown node in a ref and suggests the right one', () => {
+    const d = errors(entities.replace('ref: customers.id', 'ref: customer.id'))[0]!
+    expect(d.message).toBe('Field "customer_id" points at "customer.id", which is not a node')
+    expect(d.hint).toBe('Did you mean "customers"?')
+    expect(d.line).toBeGreaterThan(0)
+  })
+
+  it('names an unknown field and suggests the right one', () => {
+    const d = errors(entities.replace('ref: customers.id', 'ref: customers.idd'))[0]!
+    expect(d.message).toBe('Node "customers" has no field "idd"')
+    expect(d.hint).toBe('Did you mean "id"?')
+    const edge = errors(`${entities}edges:\n  - orders.customer_id -> customers.emial\n`)[0]!
+    expect(edge.message).toBe('Node "customers" has no field "emial"')
+    expect(edge.hint).toBe('Did you mean "email"?')
+    expect(edge.path).toBe('edges.0.to')
+  })
+
+  it('keeps the old message for an edge to something that is not a node', () => {
+    const d = errors(`${entities}edges:\n  - orders -> custmers\n`)[0]!
+    expect(d.message).toBe('Edge to "custmers" is not a node')
+    expect(d.hint).toBe('Did you mean "customers"?')
+  })
+
+  it('refuses a field twice and two fields in one item', () => {
+    const twice = errors('title: T\nnodes:\n  a: { fields: [id, { id: text }] }\n')[0]!
+    expect(twice.message).toBe('Field "id" appears twice in "a"')
+    const both = errors('title: T\nnodes:\n  a: { fields: [{ id: text, name: text }] }\n')[0]!
+    expect(both.message).toContain('One field per list item')
+  })
+
+  it('refuses an unknown option on a field', () => {
+    const d = errors('title: T\nnodes:\n  a: { fields: [{ id: { tpye: uuid } }] }\n')[0]!
+    expect(d.message).toContain('"tpye"')
+  })
+})
+
+describe('edges between entities', () => {
+  const text = (edge: string) => `title: T
+nodes:
+  a: { fields: [id] }
+  b: { fields: [a_id] }
+  svc: { title: Service }
+edges:
+  - ${edge}
+`
+  const kindOf = (edge: string) => Object.values(compileText(text(edge)).diagram!.edges)[0]!.kind
+
+  it('are relations unless they say otherwise', () => {
+    expect(kindOf('b.a_id -> a.id')).toBe('relation')
+    expect(kindOf('b -> a')).toBe('relation')
+    expect(kindOf('{ from: b, to: a, kind: data }')).toBe('data')
+  })
+
+  it('stay requests when a service is at one end', () => {
+    expect(kindOf('svc -> a')).toBe('http')
+    expect(kindOf('b -> svc')).toBe('http')
+  })
+})

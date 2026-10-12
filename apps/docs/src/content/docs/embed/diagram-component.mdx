@@ -25,16 +25,18 @@ import Diagram from '@the-package-labs/idocs-astro/Diagram.astro'
 | Prop | Type | Meaning |
 |---|---|---|
 | `name` | string | **Required.** The folder under `diagrams/`. |
-| `view` | string | The view to show first. Defaults to the diagram's first view. |
-| `scenario` | string | The scenario to select first. It waits for the reader unless you add `autoplay`. |
-| `mode` | `flow`, `sequence` or `story` | How the scenario is shown. Defaults to the scenario's own `mode`, then `flow`. |
-| `autoplay` | boolean | Play `scenario` as soon as the diagram is laid out. |
+| `view` | string | The view to show first. Defaults to the diagram's `defaults.view`, then its first view. |
+| `scenario` | string | The scenario to select first. Defaults to the diagram's `defaults.scenario`. It waits for the reader unless you add `autoplay`. |
+| `mode` | `flow`, `sequence` or `story` | How the scenario is shown. Defaults to the scenario's own `mode`, then the diagram's `defaults.mode`, then `flow`. |
+| `autoplay` | boolean | Play the scenario selected first as soon as the diagram is laid out. |
 | `maxHeight` | number | The tallest the canvas may grow before it scrolls inside its frame, in pixels. Default 780. |
 | `showTitle` | boolean | Show the diagram's `title` above it. |
 | `showDescription` | boolean | Show the diagram's `description` above the first view. |
 | `hash` | boolean | Keep the scenario, step and opened nodes in the address bar. Default `true`. |
-| `sidebar` | boolean | Start with the panel over the picture (outline, scenarios, timeline, views, player) open. By default it starts open when there is a scenario or another view to choose, and in a widget wider than about 640 px. With `false` it starts folded to a pill that keeps the play buttons, and the reader can still open it. |
-| `subtitles` | boolean | Write what the scenario is doing over the picture while it plays. Default `true`. |
+| `sidebar` | boolean | Start with the panel over the picture (outline and views) open. By default it starts open when there is another view to choose, and in a widget wider than about 640 px. With `false` it starts folded to a button, and the reader can still open it. The scenarios and the player are on the bar under the picture whatever this says. |
+| `subtitles` | boolean | Show the step's title and description on the bar while the scenario plays. Default `true`. |
+
+A prop beats what the diagram file says under [`defaults`](../../format/defaults/), so the file can say how its diagram usually opens and a page can still choose otherwise.
 
 See the [props reference](../../reference/props/) for the same list in one table.
 
@@ -64,7 +66,7 @@ See the [props reference](../../reference/props/) for the same list in one table
 <Diagram name="platform" scenario="request-story" mode="story" />
 ```
 
-Without `mode`, a scenario opens the way its own `mode:` says. With `mode`, the page decides. The reader can still switch with the buttons beside the player.
+Without `mode`, a scenario opens the way its own `mode:` says. With `mode`, the page decides. The reader can still switch with the buttons on the bar.
 
 ### Show the description
 

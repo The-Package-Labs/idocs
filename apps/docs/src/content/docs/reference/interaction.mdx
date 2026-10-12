@@ -44,7 +44,7 @@ Everything here works on every diagram without any setup. Try it on this one.
   <dt>Hover or focus a box</dt>
   <dd>Highlights the box and everything it connects to, and fades the rest.</dd>
   <dt>Hover a line</dt>
-  <dd>Highlights the line and its two ends. With an interfaces table, the matching row lights up too.</dd>
+  <dd>Highlights the line and its two ends. With an interfaces table open, the matching row lights up too.</dd>
   <dt>Click a box, or <kbd>Enter</kbd> or <kbd>Space</kbd> on a focused one</dt>
   <dd>Opens the drawer: the box's documentation, connections, links and source files.</dd>
   <dt>A link in the drawer</dt>
@@ -74,44 +74,46 @@ A box with an **Expand** and an **Open** strip on its bottom edge holds a whole 
 
 The level you leave is kept exactly as it was: its view, scenario, step, open drawer and expanded groups. Whatever was playing pauses. The box you came out of pulses once.
 
+## The bar under the picture
+
+A bar along the bottom of the diagram, as wide as the picture, chooses the scenario, says what its step is doing and plays it. See [the bar](../../scenarios/playback/#the-bar).
+
+<dl class="keys">
+  <dt>Scenario menu</dt>
+  <dd>Opens a list of the view's scenarios upward over the picture. <kbd>↑</kbd> <kbd>↓</kbd> move, <kbd>Enter</kbd> chooses, <kbd>Esc</kbd> puts it away. **Overview** goes back to the plain diagram. A scenario that a reader chooses starts playing, unless the system asks for reduced motion.</dd>
+  <dt>Play, Pause, Resume, Replay</dt>
+  <dd>One button whose label says what it will do.</dd>
+  <dt>Previous, Next</dt>
+  <dd>Step through one step at a time.</dd>
+  <dt>The slider</dt>
+  <dd>A segment for each step, grouped by phase. Point at it for the step under the pointer, click or drag to go there (playback pauses). <kbd>←</kbd> <kbd>→</kbd> step back and on, <kbd>Home</kbd> <kbd>End</kbd> go to the ends. See [the slider](../../scenarios/playback/#the-slider).</dd>
+  <dt>Steps</dt>
+  <dd>Opens every step as a list above the bar. Click a step, or press <kbd>Enter</kbd> or <kbd>Space</kbd> on it, to play it; the path already travelled stays lit. <kbd>Esc</kbd> or a press anywhere else puts the list away. It keeps the step in progress in view. See [the steps](../../scenarios/playback/#the-steps).</dd>
+  <dt>A phase header</dt>
+  <dd>In the list, fold the phase's steps away, or show them. Folded, it still says how many steps it holds and, while it plays, how far it has got. The sequence and the story fold the same phases.</dd>
+  <dt>Speed</dt>
+  <dd>0.5×, 1× or 2×.</dd>
+  <dt>Flow, Sequence, Story</dt>
+  <dd>Switch how the selected scenario is drawn.</dd>
+  <dt>CC</dt>
+  <dd>Show or hide the words: the title of the step, its phase, who talks to whom, and its note.</dd>
+  <dt>more</dt>
+  <dd>Beside a note that does not fit in two lines. Opens the list of steps, where the note is shown whole.</dd>
+</dl>
+
 ## The panel
 
-A panel floating over the left of the picture, inside the viewport, holds the outline, the scenarios, the timeline and the views, with the player docked at the bottom. See [the panel](../../scenarios/playback/#the-panel).
+A panel floating over the left of the picture, inside the viewport, holds the outline and the views. See [the panel](../../scenarios/playback/#the-panel).
 
 <dl class="keys">
   <dt>Outline tab</dt>
   <dd>Groups, nodes and their connections as a tree. Click a node to select it and glide to it; click a connection to go to the node at its other end; point at a row to light it up in the picture. <kbd>↑</kbd> <kbd>↓</kbd> move, <kbd>←</kbd> <kbd>→</kbd> fold and unfold, <kbd>Enter</kbd> selects. See [the outline](../../scenarios/playback/#the-outline).</dd>
   <dt>Views tab</dt>
   <dd>Switch between slices of the model. Appears when a diagram has more than one view.</dd>
-  <dt>Scenarios tab</dt>
-  <dd>A card for each scenario. Pick one to play it. **Overview** goes back to the plain diagram. A scenario that a reader selects starts playing, unless the system asks for reduced motion, and the panel moves to its timeline.</dd>
-  <dt>Timeline tab</dt>
-  <dd>The steps of the scenario in progress, grouped by phase. It keeps the step in progress in view.</dd>
-  <dt>A phase header</dt>
-  <dd>Fold the phase's steps away, or show them. Folded, it still says how many steps it holds and, while it plays, how far it has got. The sequence and the story fold the same phases.</dd>
   <dt><kbd>←</kbd> <kbd>→</kbd> on a tab</dt>
   <dd>Move to the next tab.</dd>
   <dt>The arrow at the top of the panel</dt>
-  <dd>Fold the panel to a pill that keeps Previous, Play and Next, or bring it back.</dd>
-  <dt>Flow, Sequence, Story</dt>
-  <dd>Switch how the selected scenario is drawn.</dd>
-  <dt>CC</dt>
-  <dd>Turn the subtitles, the step written out over the bottom of the viewport, on or off.</dd>
-</dl>
-
-## The player
-
-<dl class="keys">
-  <dt>Play, Pause, Resume, Replay</dt>
-  <dd>One button whose label says what it will do.</dd>
-  <dt>Previous, Next</dt>
-  <dd>Step through one step at a time.</dd>
-  <dt>Scrubber</dt>
-  <dd>Drag to any moment. Playback pauses.</dd>
-  <dt>Speed</dt>
-  <dd>0.5×, 1× or 2×.</dd>
-  <dt>A step in the timeline</dt>
-  <dd>Click, or <kbd>Enter</kbd> or <kbd>Space</kbd>, to play that step. The path already travelled stays lit.</dd>
+  <dd>Fold the panel to a button, or bring it back.</dd>
 </dl>
 
 ## Links and the address bar
@@ -122,6 +124,6 @@ The address follows the scenario and step as `#<diagram>=<scenario>.<step>`, and
 
 - Boxes are focusable buttons, and the drawer takes focus when it opens.
 - Opening a nested diagram moves focus to its **Back** button, and coming back returns it to the box that was opened. A box that holds a diagram says so in its accessible name.
-- Controls have labels, the player is a labelled group, and the panel's tabs are a real tab list that the arrow keys move along. The subtitles repeat what the timeline says, so they are hidden from screen readers.
+- Controls have labels, the bar is a labelled group, the scenario menu is a menu the arrow keys move along, the slider is a slider that says "Step 3 of 9" and the title, and the panel's tabs are a real tab list that the arrow keys move along.
 - Scenarios start paused for readers who ask for reduced motion. They can still step and scrub.
 - Colour is never the only signal: planned items are dashed and tagged, lookups and errors have their own line styles in the sequence view.

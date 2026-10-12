@@ -11,7 +11,7 @@ The **sequence** view draws a scenario as a sequence diagram: one column per nod
 
 <Diagram name="payments" scenario="pay" mode="sequence" />
 
-Pick **Sequence** beside the player to switch any scenario to it, or open a scenario that way:
+Pick **Sequence** on the bar to switch any scenario to it, or open a scenario that way:
 
 ```yaml
 scenarios:
@@ -26,7 +26,7 @@ scenarios:
 
 ## How it is drawn
 
-- **Columns** are the nodes the scenario uses, left to right in the order they first appear. Each is headed by its icon, title and `sub`, and dotted separators run between the columns, so it is clear which column an arrow belongs to.
+- **Columns** are the nodes the scenario uses, left to right in the order they first appear. Each is headed by its icon, title and `sub`, and a dotted lifeline hangs from the middle of the header, which is where the arrows begin and end.
 - **Arrows** are flow steps, drawn from the sender to the receiver with the step's label above the line. The line style follows the step's kind: solid for requests, dashed green for responses, red for errors, dotted grey for lookups and amber for events. A planned step is dashed.
 - **Self steps** are drawn as a small labelled box in the node's column.
 - **Phases** become labelled bands across the diagram, such as "I · Record it". Click one to fold its rows away, and again to show them; the timeline and the story fold the same phases.
@@ -36,7 +36,7 @@ A step that crosses several nodes is drawn as one arrow from the first node to t
 
 ## Playing it
 
-The player and the timeline work the same way in every view. Click a row to play that step, press **Play** to run the scenario, or use the scrubber. The row in progress is highlighted.
+The bar and the list of steps work the same way in every view. Click a row to play that step, press **Play** to run the scenario, or use the scrubber. The row in progress is highlighted.
 
 ## When to use it
 

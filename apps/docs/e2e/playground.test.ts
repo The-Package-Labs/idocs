@@ -155,7 +155,7 @@ describe('playground', () => {
     const { page, problems, close } = await open()
     await page.getByLabel('Example diagram').selectOption('scenario')
     await pick(page, 'Read a profile')
-    await page.waitForSelector('.idocs-player')
+    await page.waitForSelector('.idocs-bar')
     await editor(page).fill('')
     await page.waitForSelector('.pg-diagnostic.pg-error')
     await page.getByRole('button', { name: 'Visual builder', exact: true }).click()

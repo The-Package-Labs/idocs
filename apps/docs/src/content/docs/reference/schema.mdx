@@ -19,7 +19,7 @@ Every key a diagram accepts. Unknown keys are errors. For explanations and examp
 | **family** | `blue`, `amber`, `violet`, `green`, `teal`, `red`, `slate` |
 | **step kind** | `request` (default), `response`, `error`, `lookup`, `event` |
 | **direction** | `AUTO` (default), `RIGHT`, `DOWN`, `LEFT`, `UP` |
-| **node kind** | `client`, `user`, `ui`, `external`, `service`, `gateway`, `worker`, `container`, `function`, `database`, `cache`, `storage`, `queue`, `agent`, `network`, `vm`, `auth`, `monitor`, or your own |
+| **node kind** | `client`, `user`, `ui`, `external`, `service`, `gateway`, `worker`, `container`, `function`, `database`, `cache`, `storage`, `queue`, `agent`, `network`, `vm`, `auth`, `monitor`, `entity`, or your own |
 | **edge kind** | `http` (default), `channel`, `tunnel`, `queue`, `ws`, `data`, or your own |
 
 Ids (the keys of `nodes`, `groups`, `views`, `scenarios`, `kinds` and `edgeKinds`, and edge ids) may contain letters, digits, `_`, `.` and `-`.
@@ -36,6 +36,7 @@ Ids (the keys of `nodes`, `groups`, `views`, `scenarios`, `kinds` and `edgeKinds
 | `edges` | list of [edge](#edge) | no | The arrows. |
 | `views` | map of [view](#view) | no | Slices of the model. |
 | `scenarios` | map of [scenario](#scenario) | no | Stories that play over a view. |
+| `defaults` | [defaults](#defaults) | no | How the diagram opens. |
 | `kinds` | map of [kind](#kinds-and-edgekinds) | no | Your own node kinds. |
 | `edgeKinds` | map of [edge kind](#kinds-and-edgekinds) | no | Your own edge kinds. |
 
@@ -45,7 +46,9 @@ Ids (the keys of `nodes`, `groups`, `views`, `scenarios`, `kinds` and `edgeKinds
 |---|---|---|---|
 | `title` | string | the id | The display name. |
 | `sub` | string | | One monospace line under the title. |
+| `pill` | string | | A short label in the card header, like `TABLE`. |
 | `lines` | list of strings | | Short body lines inside the card. |
+| `fields` | list of fields | | Makes the card an entity. Each item is `name`, `name: type` or `name: { type?, key?, ref?, note? }`. See [entities](../../format/entities/). |
 | `icon` | string | the kind's icon | `postgresql`, `logos:redis`, `simple-icons:keycloak`, `lucide:server` or `./path.svg`. |
 | `kind` | string | | A node kind. Gives a default icon and family. |
 | `family` | family | the kind's | The accent colour. |
@@ -54,7 +57,7 @@ Ids (the keys of `nodes`, `groups`, `views`, `scenarios`, `kinds` and `edgeKinds
 | `badge` | string or number | | A marker on the card's corner. |
 | `uses` | list of strings | | Tags drawn as `uses: a · b`. Entries matching a node id become links. |
 | `chips` | list of string or `{ label, sub? }` | | Small boxes inside the card. |
-| `w` | integer | 178 | The card width in pixels. |
+| `w` | integer | 178 (280 with `fields`) | The card width in pixels. |
 | `description` | Markdown | | Shown in the drawer. |
 | `doc` | path | `nodes/<id>.md` if present | A Markdown file for the drawer, relative to the diagram folder. |
 | `links` | list of `{ label, url }` | | Shown in the drawer. |
@@ -106,7 +109,20 @@ Write an edge as `a -> b: label`, `a <-> b`, `a -> b: { ... }` or with `from` an
 | `exclude` | list of ids | | Removed after `include`. |
 | `direction` | direction | `AUTO` | The main reading direction. |
 | `keys` | boolean | `false` | Put letters on edges. |
-| `interfaces` | boolean | `false` | Show the interfaces table. |
+| `interfaces` | boolean | `false` | Offer the interfaces table under the diagram. It starts folded; the reader opens it. |
+
+## Defaults
+
+How the diagram opens. A page's own props win. See [defaults](../../format/defaults/).
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `view` | view id | the view of `scenario`, else the first | The view shown first. |
+| `scenario` | scenario id | none | The scenario selected first. It plays on `view` when both are given. |
+| `mode` | `flow`, `sequence` or `story` | `flow` | How a scenario with no `mode` of its own is drawn. |
+| `sidebar` | boolean | auto | Whether the panel starts open. Auto is open when there is another view to choose. A narrow widget starts folded either way. |
+| `subtitles` | boolean | `true` | The step's title and description on the bar while the scenario plays. |
+| `autoplay` | boolean | `false` | Play `scenario` as soon as the diagram is on screen. Needs `scenario`. |
 
 ## Scenario
 

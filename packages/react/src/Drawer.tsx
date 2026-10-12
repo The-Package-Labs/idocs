@@ -59,6 +59,15 @@ export function Drawer({
     id: diagram.nodes[u] && inView.has(u) ? u : undefined,
   }))
 
+  // Between entities the edge is about two fields, said from this node's side: `customer_id → id`
+  // when it points out, `id ← customer_id` when it points in.
+  const fieldsOf = (e: (typeof edges)[number]) => {
+    const out = e.from === nodeId
+    const mine = out ? e.fromField : e.toField
+    const theirs = out ? e.toField : e.fromField
+    return mine || theirs ? `${mine ?? '…'} ${out ? '→' : '←'} ${theirs ?? '…'}` : undefined
+  }
+
   const rows = (list: typeof edges, arrow: string) =>
     list.map((e) => (
       <li key={e.id}>
@@ -66,6 +75,7 @@ export function Drawer({
         <button type="button" onClick={() => onSelect(other(e))}>
           {diagram.nodes[other(e)]?.title}
         </button>
+        {fieldsOf(e) ? <span> · {fieldsOf(e)}</span> : null}
         {e.label ? <span> · {e.label}</span> : null}
       </li>
     ))
@@ -137,6 +147,38 @@ export function Drawer({
           <p className="idocs-summary">
             No description yet. Add <code>nodes/{node.id}.md</code> next to the diagram file.
           </p>
+        )}
+        {node.fields.length > 0 && (
+          <>
+            <h4>Fields</h4>
+            <ul className="idocs-drawer-fields">
+              {node.fields.map((f) => (
+                <li key={f.name}>
+                  <div className="idocs-drawer-field">
+                    <span className="idocs-field-name">
+                      {f.key && <b aria-hidden="true">#</b>}
+                      {f.name}
+                    </span>
+                    {f.type && <span className="idocs-field-type">{f.type}</span>}
+                  </div>
+                  {f.ref && (
+                    <div className="idocs-drawer-ref">
+                      →{' '}
+                      {inView.has(f.ref.node) ? (
+                        <button type="button" onClick={() => onSelect(f.ref!.node)}>
+                          {f.ref.node}
+                          {f.ref.field ? `.${f.ref.field}` : ''}
+                        </button>
+                      ) : (
+                        `${f.ref.node}${f.ref.field ? `.${f.ref.field}` : ''}`
+                      )}
+                    </div>
+                  )}
+                  {f.note && <div className="idocs-drawer-note">{f.note}</div>}
+                </li>
+              ))}
+            </ul>
+          </>
         )}
         {(outgoing.length > 0 || incoming.length > 0) && (
           <>

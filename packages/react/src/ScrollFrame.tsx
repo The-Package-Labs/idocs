@@ -12,7 +12,6 @@ interface Props {
   panel?: React.ReactNode
   /** How much of the left edge the open panel covers, in px; the content starts after it. */
   inset?: number
-  subtitle?: React.ReactNode
   /** Index of the step in progress: the frame scrolls to keep it in view. */
   current: number
   children: React.ReactNode
@@ -30,7 +29,6 @@ export function ScrollFrame({
   tools,
   panel,
   inset: insetProp = 0,
-  subtitle,
   current,
   children,
 }: Props) {
@@ -78,7 +76,6 @@ export function ScrollFrame({
           </div>
         )}
       </div>
-      {subtitle && <div className="idocs-subtitles">{subtitle}</div>}
       {panel}
     </div>
   )

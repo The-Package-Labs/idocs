@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { type Browser, chromium, type Page } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { serve } from '../../../scripts/static-server.mjs'
-import { chosen, pick, scenarioTitles } from './panel'
+import { chosen, pick, scenarioTitles, stepNow, waitForStep } from './panel'
 
 const PORT = 4505
 const BASE = `http://localhost:${PORT}`
@@ -197,8 +197,8 @@ describe('looking inside and coming back', () => {
 
   it('leaves the parent as it was: same scenario, same step, same place on screen', async () => {
     const { page, close } = await open(`${PAGE}#nest-shop=place-order.3`)
-    await page.waitForSelector('.idocs-step.is-active')
-    expect(await page.locator('.idocs-step.is-active .idocs-step-n').textContent()).toBe('3')
+    await waitForStep(page)
+    expect(await stepNow(page)).toBe(3)
     const before = await where(page, card(0, 'orders'))
 
     await page.click(strip(0, 'orders'))
@@ -206,14 +206,12 @@ describe('looking inside and coming back', () => {
     // The inner diagram has scenarios of its own, and none of them is the parent's.
     expect(await scenarioTitles(page, level(1))).toEqual(['Overview', 'Create an order'])
     await pick(page, 'Create an order', level(1))
-    await page.waitForSelector(`${level(1)} .idocs-step.is-active`)
+    await waitForStep(page, level(1))
     await page.click('.idocs-trail-back')
     await page.waitForSelector(`${level(0)}:not([hidden])`)
     await page.waitForTimeout(500)
 
-    expect(
-      await page.locator(`${level(0)} .idocs-step.is-active .idocs-step-n`).textContent(),
-    ).toBe('3')
+    expect(await stepNow(page, level(0))).toBe(3)
     expect(await chosen(page, level(0))).toBe('Place an order')
     // It was not laid out again while hidden: nothing moved.
     expect(await where(page, card(0, 'orders'))).toEqual(before)
@@ -305,10 +303,8 @@ describe('links', () => {
     )
     await page.waitForSelector(`${level(2)}:not([hidden]) [data-node="warehouse"]`)
     expect(await crumbs(page)).toEqual(['Online shop', 'Order service', 'Stock'])
-    await page.waitForSelector(`${level(2)} .idocs-step.is-active`)
-    expect(
-      await page.locator(`${level(2)} .idocs-step.is-active .idocs-step-n`).textContent(),
-    ).toBe('3')
+    await waitForStep(page, level(2))
+    expect(await stepNow(page, level(2))).toBe(3)
     expect(problems).toEqual([])
     await close()
   })
@@ -470,7 +466,7 @@ describe('expanding in place', () => {
     // The pointer rests where the card was, which may now be an inner card that is rightly lit.
     // Park it on the panel, which lights nothing, so what is left is a hover the replaced card
     // never took back.
-    await page.locator(`${ROOT} .idocs-panel-head`).hover()
+    await page.locator(`${ROOT} .idocs-bar`).hover()
     expect(
       await page.locator('.idocs[data-diagram="nest-shop"] [data-level="0"] .is-dim').count(),
     ).toBe(0)
@@ -651,7 +647,7 @@ describe('expanding in place', () => {
 
   it('opens a node from inside a group, with every level on the way in the trail', async () => {
     const { page, problems, close } = await open(`${PAGE}#nest-shop=place-order.3`)
-    await page.waitForSelector('.idocs-step.is-active')
+    await waitForStep(page)
     await page.click(expand(0, 'orders'))
     await page.waitForSelector(group('orders'))
     await page.click(strip(0, 'orders/stock'))
@@ -665,9 +661,7 @@ describe('expanding in place', () => {
     await page.waitForSelector(`${level(0)}:not([hidden])`)
     // The parent is as it was left: the group is still open, and so is the scenario.
     expect(await page.locator(group('orders')).count()).toBe(1)
-    expect(
-      await page.locator(`${level(0)} .idocs-step.is-active .idocs-step-n`).textContent(),
-    ).toBe('3')
+    expect(await stepNow(page, level(0))).toBe(3)
     expect(problems).toEqual([])
     await close()
   })

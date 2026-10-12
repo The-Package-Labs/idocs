@@ -57,9 +57,11 @@ describe('documentation navigation', () => {
     expect(links.map((l) => l.trim())).toEqual([
       'Overview',
       'Nodes',
+      'Entities',
       'Groups',
       'Edges',
       'Views',
+      'Defaults',
       'Nested diagrams',
       'Kinds',
       'Node docs',

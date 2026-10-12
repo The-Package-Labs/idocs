@@ -7,6 +7,7 @@ import {
   DEFAULT_NODE_WIDTH,
   type Diagrams,
   defaultExpanded,
+  defaultMode,
   type Frame,
   frameAt,
   type Layout,
@@ -15,13 +16,21 @@ import {
   openingView,
   type Rect,
   rectOfPath,
+  startOf,
 } from '@the-package-labs/idocs-core'
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Canvas, type Focus } from './Canvas'
 import { DRAWER_WIDTH, Drawer } from './Drawer'
 import { EdgeLayer, type EdgeState } from './EdgeLayer'
 import { focusOf } from './focus'
-import { readHashValue, readScenarioHash, trailKey, writeHash } from './hash'
+import {
+  OVERVIEW_MARK,
+  readHashValue,
+  readScenarioHash,
+  scenarioHash,
+  trailKey,
+  writeHash,
+} from './hash'
 import { InlineDiagram } from './InlineDiagram'
 import { InterfaceTable } from './InterfaceTable'
 import { insideOf } from './inside'
@@ -30,10 +39,10 @@ import { NodeCard, type NodeCardState, type NodeInside } from './NodeCard'
 import { Outline } from './Outline'
 import { Packets } from './Packets'
 import { PANEL_GAP, PANEL_WIDTH, Panel, type SideTab } from './Panel'
+import { PlayerBar } from './PlayerBar'
 import { ScrollFrame } from './ScrollFrame'
 import { SequenceView } from './SequenceView'
 import { StoryView } from './StoryView'
-import { Subtitle } from './Subtitle'
 import { type Crumb, Trail } from './Trail'
 import { useLayout } from './useLayout'
 import { usePlayer } from './usePlayer'
@@ -42,18 +51,24 @@ import { Zones } from './Zones'
 
 export interface DiagramViewProps {
   diagram: CompiledDiagram
-  /** View to show first. Defaults to the diagram's first view. */
+  /** View to show first. Defaults to the diagram's `defaults.view`, then its first view. */
   view?: string
-  /** Scenario to select first. */
+  /** Scenario to select first. Defaults to the diagram's `defaults.scenario`. */
   scenario?: string
-  /** How a scenario is shown. Defaults to the scenario's own `mode`, then `flow`. */
+  /**
+   * How a scenario is shown. Defaults to the scenario's own `mode`, then the diagram's
+   * `defaults.mode`, then `flow`.
+   */
   mode?: 'flow' | 'sequence' | 'story'
   /** Tallest the canvas may grow before it scrolls inside its frame, in px. */
   maxHeight?: number
   showTitle?: boolean
   /** Show the diagram's description above the first view. */
   showDescription?: boolean
-  /** Play `scenario` as soon as it is laid out. Ignored when the system asks for reduced motion. */
+  /**
+   * Play the scenario selected first as soon as it is laid out. Defaults to the diagram's
+   * `defaults.autoplay`. Ignored when the system asks for reduced motion.
+   */
   autoplay?: boolean
   /** Keep the selected scenario and step in the URL hash so they can be shared. */
   hash?: boolean
@@ -62,10 +77,14 @@ export interface DiagramViewProps {
    * Whether the panel that floats over the picture (outline, scenarios, timeline, views and the
    * player) starts open. A reader can fold it away and bring it back. By default it starts open
    * when there is something to choose, a scenario or another view, and in a frame wide enough to
-   * share; otherwise it starts folded.
+   * share; otherwise it starts folded. The diagram's `defaults.sidebar` replaces that default but
+   * still gives way in a narrow frame; this prop does not.
    */
   sidebar?: boolean
-  /** Show what the scenario is doing in words over the picture while it plays. Default `true`. */
+  /**
+   * Show what the scenario is doing in words over the picture while it plays. Defaults to the
+   * diagram's `defaults.subtitles`, then `true`.
+   */
   subtitles?: boolean
   /** Handle node clicks externally, for example in a visual editor. Replaces the detail drawer. */
   onNodeSelect?: (id: string) => void
@@ -361,10 +380,10 @@ function Level({
   maxHeight = 780,
   showTitle = false,
   showDescription = false,
-  autoplay: autoplayProp = false,
+  autoplay: autoplayProp,
   hash = true,
   sidebar: sidebarProp,
-  subtitles: subtitlesProp = true,
+  subtitles: subtitlesProp,
   hashKey,
   active,
   fullscreen,
@@ -388,34 +407,32 @@ function Level({
     [paths],
   )
 
-  const [viewId, setViewId] = useState(
-    () =>
-      viewProp ??
-      diagram.scenarios.find((s) => s.id === scenarioProp)?.view ??
-      diagram.views[0]!.id,
+  // Where it opens: what the page asked for, else what the diagram says about itself.
+  const [start] = useState(() =>
+    startOf(diagram, { view: viewProp, scenario: scenarioProp, mode: modeProp }),
   )
+  const [viewId, setViewId] = useState(start.view)
   const view = diagram.views.find((v) => v.id === viewId) ?? diagram.views[0]!
   const scenarios = useMemo(
     () => diagram.scenarios.filter((s) => s.view === view.id),
     [diagram, view.id],
   )
-  const [scenarioId, setScenarioId] = useState<string | null>(scenarioProp ?? null)
+  const [scenarioId, setScenarioId] = useState<string | null>(start.scenario)
   const scenario = scenarios.find((s) => s.id === scenarioId) ?? null
-  const [mode, setMode] = useState<'flow' | 'sequence' | 'story'>(
-    () => modeProp ?? diagram.scenarios.find((s) => s.id === scenarioProp)?.mode ?? 'flow',
-  )
-  // The panel: its tabs, whether it is open, and the subtitles it can switch. It opens by itself
-  // when there is something to choose, unless the page said otherwise.
-  const hasChoices = scenarios.length > 0 || diagram.views.length > 1
-  const [tabState, setTab] = useState<SideTab>(
-    scenarioProp ? 'timeline' : scenarios.length > 0 ? 'scenarios' : 'outline',
-  )
-  const [sideOpen, setSideOpen] = useState(sidebarProp ?? hasChoices)
+  const [mode, setMode] = useState<'flow' | 'sequence' | 'story'>(start.mode)
+  // The panel: its tabs, whether it is open, and the words it can switch. It opens by itself when
+  // there is another view to choose, unless the page or the diagram said otherwise. Scenarios are
+  // chosen in the bar under the picture, not here.
+  const hasChoices = diagram.views.length > 1
+  const [tabState, setTab] = useState<SideTab>(hasChoices ? 'views' : 'outline')
+  const [sideOpen, setSideOpen] = useState(sidebarProp ?? diagram.defaults?.sidebar ?? hasChoices)
   // The frame is made tall enough for the panel once the panel has been open, and stays so when it
   // is folded, so folding does not make the page jump.
   const [tall, setTall] = useState(sideOpen)
-  const [subtitles, setSubtitles] = useState(subtitlesProp)
-  // A narrow frame cannot share itself with the panel: it starts folded there, unless asked to open.
+  const [subtitles, setSubtitles] = useState(subtitlesProp ?? diagram.defaults?.subtitles ?? true)
+  // A narrow frame cannot share itself with the panel: it starts folded there, unless the page
+  // asked to open it with the `sidebar` prop. What the diagram wrote under `defaults` is meant for
+  // a frame with room, so it gives way.
   const workspaceRef = useRef<HTMLDivElement>(null)
   // biome-ignore lint/correctness/useExhaustiveDependencies: only the first render decides
   useEffect(() => {
@@ -429,18 +446,12 @@ function Level({
   const [internalSelected, setSelected] = useState<string | null>(null)
   const selected = selectedNode === undefined ? internalSelected : selectedNode
   const [hidePlanned, setHidePlanned] = useState(false)
+  // The interfaces table starts folded: the reader opens it, and it stays as left across views.
+  const [ifacesOpen, setIfacesOpen] = useState(false)
   // null means automatic: follow the action when the diagram is too big to read at once.
   const [follow, setFollow] = useState<boolean | null>(null)
 
-  // The tabs that come and go (a view may have no scenarios, a timeline needs one chosen) go last,
-  // so the ones before them never move: a click aimed at "Views" must not land on another tab
-  // because something appeared in front of it.
-  const tabs: SideTab[] = [
-    'outline',
-    ...(diagram.views.length > 1 ? (['views'] as const) : []),
-    ...(scenarios.length > 0 ? (['scenarios'] as const) : []),
-    ...(scenario ? (['timeline'] as const) : []),
-  ]
+  const tabs: SideTab[] = ['outline', ...(diagram.views.length > 1 ? (['views'] as const) : [])]
   const tab = tabs.includes(tabState) ? tabState : (tabs[0] ?? 'outline')
 
   // Nodes shown in place, as paths: `orders`, and `orders/stock` inside it. The author may have
@@ -505,7 +516,10 @@ function Level({
   // A scenario chosen by clicking starts playing, and so does one the page asked to autoplay.
   // One restored from the URL waits for the reader.
   const [startPlaying] = useState(
-    () => autoplayProp && scenarioProp !== undefined && !prefersReducedMotion(),
+    () =>
+      (autoplayProp ?? diagram.defaults?.autoplay ?? false) &&
+      start.scenario !== null &&
+      !prefersReducedMotion(),
   )
   const autoplay = useRef(startPlaying)
   const pendingStep = useRef<number | null>(null)
@@ -525,9 +539,8 @@ function Level({
   const selectScenario = (id: string | null) => {
     autoplay.current = id !== null && !prefersReducedMotion()
     setScenarioId(id)
-    setTab(id ? 'timeline' : 'scenarios')
     setHover({})
-    if (id === null) setMode('flow')
+    if (id === null) setMode(defaultMode(diagram))
     else {
       const picked = scenarios.find((s) => s.id === id)
       if (picked?.mode) setMode(picked.mode)
@@ -537,33 +550,34 @@ function Level({
   const selectView = (id: string) => {
     setViewId(id)
     setScenarioId(null)
-    // Back to what to look at: the scenarios of the new view, or the views when it has none.
-    setTab(diagram.scenarios.some((sc) => sc.view === id) ? 'scenarios' : 'views')
     setSelected(null)
-    setMode('flow')
+    setMode(defaultMode(diagram))
   }
 
-  // Deep links: #<diagram>=<scenario>[.<step>]
+  // Deep links: #<diagram>=<scenario>[.<step>], or #<diagram>=~ for the overview of a diagram that
+  // opens on a scenario of its own.
   useEffect(() => {
     if (!hash) return
     const hit = readScenarioHash(hashKey)
     if (!hit) return
+    if (hit.scenario === OVERVIEW_MARK) {
+      setScenarioId(null)
+      setMode(defaultMode(diagram))
+      return
+    }
     const sc = diagram.scenarios.find((s) => s.id === hit.scenario)
     if (!sc) return
     setViewId(sc.view)
     setScenarioId(sc.id)
-    setTab('timeline')
     if (sc.mode) setMode(sc.mode)
     if (hit.step) pendingStep.current = hit.step - 1
   }, [diagram, hash, hashKey])
 
   useEffect(() => {
     if (!hash || player.playing) return
-    writeHash(
-      hashKey,
-      scenarioId ? `${scenarioId}${stepIndex >= 0 ? `.${stepIndex + 1}` : ''}` : null,
-    )
-  }, [hash, hashKey, scenarioId, stepIndex, player.playing])
+    // A scenario that has not started has no step to speak of, whatever the list shows as next.
+    writeHash(hashKey, scenarioHash(scenarioId, scenarioActive ? stepIndex : -1, start.scenario))
+  }, [hash, hashKey, scenarioId, stepIndex, scenarioActive, player.playing, start.scenario])
 
   // What is shown in place is part of the link too: #<diagram>+=orders,orders/stock. It is only
   // written when it differs from what the author started with, and `none` says "all folded".
@@ -835,9 +849,6 @@ function Level({
     <Panel
       diagram={diagram}
       view={view}
-      scenarios={scenarios}
-      scenario={scenario}
-      onScenario={selectScenario}
       onView={selectView}
       tab={tab}
       tabs={tabs}
@@ -848,50 +859,21 @@ function Level({
         if (open) setTall(true)
       }}
       outline={outline}
-      player={player}
-      timeline={timeline}
-      mode={mode}
-      onMode={setMode}
-      stepIndex={stepIndex}
-      subtitles={subtitles}
-      onSubtitles={setSubtitles}
-      collapsed={foldedPhases}
-      onTogglePhase={togglePhase}
-      onFoldPhases={foldPhases}
     />
   )
-  const captions = scenario && (
+  const captions = scenario && presentation === 'flow' && (
     <div className="idocs-toolbar-group">
-      {presentation === 'flow' && (
-        <button
-          type="button"
-          className="idocs-tool is-text"
-          aria-pressed={following}
-          onClick={() => setFollow(!following)}
-          title="Move the view to wherever the action is"
-        >
-          Follow
-        </button>
-      )}
       <button
         type="button"
         className="idocs-tool is-text"
-        aria-pressed={subtitles}
-        onClick={() => setSubtitles(!subtitles)}
-        title={subtitles ? 'Turn the subtitles off' : 'Turn the subtitles on'}
+        aria-pressed={following}
+        onClick={() => setFollow(!following)}
+        title="Move the view to wherever the action is"
       >
-        CC
+        Follow
       </button>
     </div>
   )
-
-  // What is happening, in words, while a scenario plays. It floats over the bottom edge of the
-  // viewport, whatever the scenario is shown as.
-  const step = scenario && stepIndex >= 0 ? scenario.steps[stepIndex] : undefined
-  const subtitle =
-    subtitles && scenarioActive && step && scenario ? (
-      <Subtitle diagram={diagram} step={step} total={scenario.steps.length} />
-    ) : null
 
   return (
     <>
@@ -906,7 +888,7 @@ function Level({
         <div className="idocs-summary" dangerouslySetInnerHTML={{ __html: view.summaryHtml }} />
       )}
 
-      <div ref={workspaceRef} className="idocs-workspace">
+      <div ref={workspaceRef} className={cx('idocs-workspace', scenarios.length > 0 && 'has-bar')}>
         {presentation === 'flow' && <Legend diagram={diagram} view={view} />}
 
         {scenario && presentation === 'sequence' ? (
@@ -917,7 +899,6 @@ function Level({
             tools={captions}
             panel={panel}
             inset={inset}
-            subtitle={subtitle}
             current={stepIndex}
           >
             <SequenceView
@@ -937,7 +918,6 @@ function Level({
             tools={captions}
             panel={panel}
             inset={inset}
-            subtitle={subtitle}
             current={stepIndex}
           >
             <StoryView
@@ -960,7 +940,6 @@ function Level({
             onBackgroundClick={closeDrawer}
             focus={camera}
             onUserMove={stopFollowing}
-            subtitle={subtitle}
             panel={panel}
             inset={inset}
             reserve={reserve}
@@ -1032,12 +1011,34 @@ function Level({
         )}
       </div>
 
+      {scenarios.length > 0 && (
+        <PlayerBar
+          diagram={diagram}
+          scenarios={scenarios}
+          scenario={scenario}
+          onScenario={selectScenario}
+          player={player}
+          timeline={timeline}
+          started={scenarioActive}
+          stepIndex={stepIndex}
+          mode={mode}
+          onMode={setMode}
+          subtitles={subtitles}
+          onSubtitles={setSubtitles}
+          collapsed={foldedPhases}
+          onTogglePhase={togglePhase}
+          onFoldPhases={foldPhases}
+        />
+      )}
+
       {view.interfaces && (
         <InterfaceTable
           diagram={diagram}
           view={view}
           hover={hover.edge ?? null}
           onHover={onHoverEdge}
+          open={ifacesOpen}
+          onToggle={() => setIfacesOpen(!ifacesOpen)}
         />
       )}
 

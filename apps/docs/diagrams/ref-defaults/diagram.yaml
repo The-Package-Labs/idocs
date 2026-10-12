@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=../diagram.schema.json
+title: How a diagram opens
+description: A small system that opens on a sequence diagram of its sign-in scenario, with the panel folded to its button.
+
+# What a reader sees before they touch anything. A page can still choose otherwise.
+defaults:
+  scenario: sign-in
+  mode: sequence
+  sidebar: false
+
+nodes:
+  browser: { kind: client, icon: react, title: Browser }
+  api: { kind: service, icon: nodejs, title: API }
+  auth: { kind: auth, title: Auth service }
+  db: { kind: database, icon: postgresql, title: Users }
+
+edges:
+  - browser -> api: HTTPS
+  - api -> auth
+  - auth -> db: { kind: data }
+
+views:
+  overview:
+    title: Overview
+  auth-path:
+    title: Auth only
+    include: [api, auth, db]
+    direction: DOWN
+
+scenarios:
+  sign-in:
+    title: Sign in
+    summary: The scenario the diagram opens on, drawn the way the diagram says to draw it.
+    steps:
+      - browser -> api: POST /login
+      - api -> auth: verify password
+      - auth -> db:
+          label: SELECT user
+          kind: lookup
+          note: "The auth service finds the user by email and compares the password with the stored hash, never with the password itself. A missing user and a wrong password look the same to the caller, so the answer says nothing about which emails exist." 
+      - db -> auth: row
+      - auth -> api: token
+      - api -> browser: 200 OK
+  rotate-keys:
+    title: Rotate signing keys
+    view: auth-path
+    summary: A scenario on the other view. It takes the mode the reader is in, since it names none.
+    steps:
+      - at auth: make a new key
+      - auth -> db: store the key
+      - db -> auth: stored

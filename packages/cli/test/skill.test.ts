@@ -163,6 +163,9 @@ describe('skill matches the code', () => {
     for (const key of KNOWN_KEYS.group) expect(fields, `group field ${key}`).toContain(`\`${key}\``)
     for (const key of KNOWN_KEYS.edge) expect(fields, `edge field ${key}`).toContain(`\`${key}\``)
     for (const key of KNOWN_KEYS.view) expect(fields, `view field ${key}`).toContain(`${key}`)
+    for (const key of KNOWN_KEYS.defaults) {
+      expect(fields, `defaults field ${key}`).toContain(`${key}:`)
+    }
     for (const key of KNOWN_KEYS.scenario) {
       expect(read(join(skillDir, 'references/scenarios.md')), `scenario field ${key}`).toContain(
         key,

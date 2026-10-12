@@ -57,6 +57,32 @@ describe('diagram', () => {
   })
 })
 
+describe('defaults', () => {
+  it('is a root key, with the choices for how the diagram opens', () => {
+    const c = run('|')
+    expect(c?.items.find((i) => i.label === 'defaults')?.documentation).toMatch(/opens/)
+    expect(labels(run('defaults:\n  |'))).toEqual([
+      'view',
+      'scenario',
+      'mode',
+      'sidebar',
+      'subtitles',
+      'autoplay',
+    ])
+    expect(labels(run('defaults:\n  mode: |'))).toEqual(['flow', 'sequence', 'story'])
+    expect(labels(run('defaults:\n  sidebar: |'))).toEqual(['true', 'false'])
+  })
+
+  it('offers the views of the diagram for its default view, flow style too', () => {
+    expect(labels(run('defaults:\n  view: |'))).toEqual(['main'])
+    expect(labels(run('defaults: { view: | }'))).toEqual(['main'])
+  })
+
+  it('does not suggest keys that are already there', () => {
+    expect(labels(run('defaults:\n  mode: story\n  |'))).not.toContain('mode')
+  })
+})
+
 describe('keys', () => {
   it('offers the root keys', () => {
     expect(labels(run('|'))).toEqual(

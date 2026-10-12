@@ -53,6 +53,7 @@ An edge from a node to itself is not drawn, and idocs warns about it.
 | `queue` | Green dotted line. | A broker: messages, events, jobs. |
 | `ws` | Dashed line. | WebSocket traffic. |
 | `data` | Thin grey line. | Access to a data store. |
+| `relation` | Thin grey line. | A relation between two [entities](../entities/). Fields with a `ref` draw these for you. |
 
 Define your own under `edgeKinds:`:
 
@@ -82,7 +83,7 @@ views:
     interfaces: true    # a table of every edge under the diagram
 ```
 
-The table lists each edge's key, its two ends, its kind, its `auth` and what travels over it: the `payload`, or the `label` when there is no payload. Hidden edges are left out. Hover a row to highlight the edge, or hover an edge to highlight its row. The table in the example above comes straight from the edges' `auth` and `payload` fields, so it cannot drift from the picture.
+The table sits under the diagram behind a bar that says how many connections it holds. It starts folded, since it is a reference to reach for and not part of the picture, and the reader opens it with a click. It lists each edge's key, its two ends, its kind, its `auth` and what travels over it: the `payload`, or the `label` when there is no payload. Hidden edges are left out. Hover a row to highlight the edge, or hover an edge to highlight its row. The table in the example above comes straight from the edges' `auth` and `payload` fields, so it cannot drift from the picture.
 
 Assign a key yourself with `key:` if you need a letter to stay the same when edges are added.
 

@@ -1,8 +1,8 @@
 import { fileURLToPath } from 'node:url'
-import { type Browser, chromium, type Page } from 'playwright-core'
+import { type Browser, chromium } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { serve } from '../../../scripts/static-server.mjs'
-import { chosen, pick, pickView } from './panel'
+import { chosen, openSteps, pick, pickView, stepNow, waitForStep } from './panel'
 
 const PORT = 4501
 const BASE = `http://localhost:${PORT}`
@@ -38,8 +38,6 @@ async function open(path: string, opts: { theme?: 'light' | 'dark' } = {}) {
   return { page, problems, close: () => ctx.close() }
 }
 
-const stepActive = (page: Page) => page.locator('.idocs-step.is-active .idocs-step-n')
-
 describe('checkout example', () => {
   it('renders every node with an icon, edges and a legend', async () => {
     const { page, problems, close } = await open('/examples/checkout/')
@@ -55,12 +53,13 @@ describe('checkout example', () => {
     const { page, problems, close } = await open('/examples/checkout/')
     await pick(page, 'Place an order')
     await page.waitForSelector('.idocs-packet', { state: 'attached', timeout: 5000 })
-    await page.waitForSelector('.idocs-step.is-active')
+    await waitForStep(page)
     await page.waitForFunction(
       () => document.querySelector('.idocs-btn.is-primary')?.textContent?.includes('Replay'),
       null,
       { timeout: 40_000 },
     )
+    await openSteps(page)
     expect(await page.locator('.idocs-step.is-done').count()).toBeGreaterThan(5)
     expect(await page.evaluate(() => location.hash)).toMatch(/^#checkout=place-order\.\d+$/)
     expect(problems).toEqual([])
@@ -83,7 +82,8 @@ describe('checkout example', () => {
     await resumed()
     await page.click('button[aria-label="Next step"]')
     await resumed()
-    expect(Number(await stepActive(page).first().textContent())).toBeGreaterThanOrEqual(2)
+    expect(await stepNow(page)).toBeGreaterThanOrEqual(2)
+    await openSteps(page)
     await page.click('.idocs-step:nth-of-type(1)')
     await page.waitForTimeout(300)
     await page.click('.idocs-btn.is-primary')
@@ -96,6 +96,7 @@ describe('checkout example', () => {
     await page.click('.idocs-modes button:has-text("Sequence")')
     await page.waitForSelector('.idocs-seq svg')
     const rows = await page.locator('.idocs-seq .seq-row').count()
+    await openSteps(page)
     const steps = await page.locator('.idocs-step').count()
     expect(rows).toBe(steps)
     await close()
@@ -124,8 +125,8 @@ describe('checkout example', () => {
 
   it('restores a scenario and step from the URL', async () => {
     const { page, close } = await open('/examples/checkout/#checkout=place-order.3')
-    await page.waitForSelector('.idocs-step.is-active')
-    expect(Number(await stepActive(page).first().textContent())).toBe(3)
+    await waitForStep(page)
+    expect(await stepNow(page)).toBe(3)
     expect(await chosen(page)).toBe('Place an order')
     await close()
   })
@@ -172,7 +173,8 @@ describe('story view', () => {
     expect(await page.locator('.idocs-phase-label').count()).toBe(5)
     expect(await page.locator('.idocs-sbox.role-lookup').count()).toBe(6)
     expect(await page.locator('.idocs-sbox:not(.role-lookup)').count()).toBe(13)
-    // The story in one breath is at the top of the timeline beside it.
+    // The story in one breath is at the top of the list of steps.
+    await openSteps(page)
     expect(await page.locator('.idocs-panel-summary').count()).toBe(1)
     // Connectors are measured from the real boxes, so they exist only once layout has settled.
     await page.waitForSelector('.idocs-slink')
@@ -200,7 +202,7 @@ describe('story view', () => {
     await page.waitForSelector('.idocs-story-grid')
     await page.click('.idocs-sbox:has-text("create payment intent")')
     await page.waitForSelector('.idocs-sbox.is-active')
-    expect(Number(await stepActive(page).first().textContent())).toBe(3)
+    expect(await stepNow(page)).toBe(3)
     await close()
   })
 })
@@ -224,7 +226,7 @@ describe('platform example', () => {
     expect(await page.locator('[data-node]').count()).toBe(37)
     expect(await page.locator('.idocs-zone').count()).toBe(9)
     await pick(page, 'Dispatch a job to a device')
-    await page.selectOption('.idocs-player select', '2')
+    await page.selectOption('.idocs-bar select', '2')
     await page.waitForFunction(
       () => document.querySelector('.idocs-btn.is-primary')?.textContent?.includes('Replay'),
       null,
@@ -248,6 +250,51 @@ describe('platform example', () => {
     expect(await page.locator('.idocs-tool:has-text("Follow")').getAttribute('aria-pressed')).toBe(
       'true',
     )
+    await close()
+  })
+})
+
+describe('entity cards', () => {
+  it('draws a row per field, marks keys and references, and draws a relation for each ref', async () => {
+    const { page, problems, close } = await open('/format/entities/')
+    expect(await page.locator('[data-node]').count()).toBe(7)
+    const orders = page.locator('[data-node="orders"]')
+    expect(await orders.locator('.idocs-field').count()).toBe(6)
+    expect(await orders.locator('.idocs-pill.is-tag').textContent()).toBe('TABLE')
+    expect(await orders.locator('.idocs-field.is-key .idocs-field-name').textContent()).toContain(
+      'id',
+    )
+    expect(await orders.locator('.idocs-field.is-ref').count()).toBe(2)
+    // Seven relations: five refs and two written by hand, one of which replaces a ref.
+    expect(await page.locator('.idocs-edge').count()).toBe(7)
+    expect(await page.locator('.idocs-legend').textContent()).toContain('Relation between entities')
+    expect(problems).toEqual([])
+    await close()
+  })
+
+  it('lists the fields and what each connection is about in the drawer', async () => {
+    const { page, close } = await open('/format/entities/')
+    await page.click('[data-node="order_items"]')
+    const drawer = page.locator('.idocs-drawer')
+    await drawer.waitFor()
+    expect(await drawer.locator('.idocs-drawer-fields li').count()).toBe(4)
+    // A reference is a way to the entity it points at.
+    await drawer.locator('.idocs-drawer-ref button', { hasText: 'orders.id' }).click()
+    await page.waitForSelector('.idocs-drawer .idocs-node-title:has-text("orders")')
+    expect(await drawer.locator('.idocs-drawer-links').textContent()).toContain('id ← order_id')
+    await close()
+  })
+
+  it('keeps the card as wide as the model says, and the rows inside it', async () => {
+    const { page, close } = await open('/format/entities/')
+    const card = page.locator('[data-node="orders"]')
+    const box = (await card.boundingBox())!
+    for (const row of await card.locator('.idocs-field').all()) {
+      const r = (await row.boundingBox())!
+      expect(r.x).toBeGreaterThanOrEqual(box.x - 1)
+      expect(r.x + r.width).toBeLessThanOrEqual(box.x + box.width + 1)
+      expect(r.y + r.height).toBeLessThanOrEqual(box.y + box.height + 1)
+    }
     await close()
   })
 })

@@ -9,9 +9,12 @@ type Diagram = Extract<ToWebview, { type: 'diagram' }>
 
 type State = { kind: 'empty'; message: string } | { kind: 'diagram'; message: Diagram }
 
+/** What the bar under the picture takes, when the diagram has scenarios to put on it, in px. */
+const BAR_HEIGHT = 140
+
 /** The canvas may use the window, less the controls above and below it. */
-function canvasHeight(): number {
-  return Math.max(360, window.innerHeight - 230)
+function canvasHeight(windowHeight: number, bar: boolean): number {
+  return Math.max(360, windowHeight - 230 - (bar ? BAR_HEIGHT : 0))
 }
 
 export function App() {
@@ -19,7 +22,7 @@ export function App() {
   const [highlight, setHighlight] = useState<string | null>(null)
   const [locked, setLocked] = useState(false)
   const [showProblems, setShowProblems] = useState(false)
-  const [height, setHeight] = useState(canvasHeight)
+  const [windowHeight, setWindowHeight] = useState(() => window.innerHeight)
   const folderRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -47,7 +50,7 @@ export function App() {
           return
       }
     }
-    const onResize = () => setHeight(canvasHeight())
+    const onResize = () => setWindowHeight(window.innerHeight)
     window.addEventListener('message', onMessage)
     window.addEventListener('resize', onResize)
     vscode.postMessage({ type: 'ready' })
@@ -76,6 +79,7 @@ export function App() {
   }
 
   const { diagram, problems, stale, name } = state.message
+  const height = canvasHeight(windowHeight, !!diagram?.scenarios.length)
   const errors = problems.filter((p) => p.severity === 'error').length
   // With nothing to draw, the problems are the page.
   const listOpen = showProblems || (!diagram && problems.length > 0)

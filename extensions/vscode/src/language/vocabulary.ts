@@ -6,6 +6,7 @@ import { authoringJsonSchema } from '@the-package-labs/idocs-core/browser'
 
 export type Context =
   | 'root'
+  | 'defaults'
   | 'node'
   | 'chip'
   | 'link'
@@ -89,6 +90,7 @@ function table(): Map<Context, Prop[]> {
 
   cache = new Map<Context, Prop[]>([
     ['root', propsOf(root)],
+    ['defaults', propsOf(p.defaults)],
     ['node', propsOf(node)],
     ['chip', propsOf(objectBranch(node?.properties?.chips?.items))],
     ['link', propsOf(node?.properties?.links?.items)],

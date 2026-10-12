@@ -11,7 +11,7 @@ diagrams/
     scenarios/<id>.yaml        optional: a long scenario in its own file; the file name is its id
 ```
 
-Top-level keys: `title` (required), `description`, `nodes` (required), `groups`, `edges`, `views`, `scenarios`, `kinds`, `edgeKinds`. Unknown keys are errors with a "did you mean" hint.
+Top-level keys: `title` (required), `description`, `nodes` (required), `groups`, `edges`, `views`, `scenarios`, `defaults`, `kinds`, `edgeKinds`. Unknown keys are errors with a "did you mean" hint.
 
 ## Nodes
 
@@ -21,7 +21,9 @@ Top-level keys: `title` (required), `description`, `nodes` (required), `groups`,
 |---|---|
 | `title` | Display name. Defaults to the id. |
 | `sub` | One mono line under the title: port, stack, version. |
+| `pill` | Short label in the card header: `TABLE`, `ES INDEX`. |
 | `lines` | List of short body lines in the card. |
+| `fields` | Makes the card an entity: one row per field. `- id: { type: uuid, key: true }`, `- email: text`, `- customer_id: { type: uuid, ref: customers.id }`, or just `- name`. See "Entities" below. |
 | `icon` | `postgresql` (looks in brand logos, then monochrome brand marks, then Lucide), `logos:redis`, `simple-icons:keycloak`, `lucide:server`, or a path to your own SVG relative to the diagram folder. |
 | `kind` | Gives a default icon and colour family (list below). |
 | `family` | Accent colour: `blue amber violet green teal red slate`. Overrides the kind's. |
@@ -30,7 +32,7 @@ Top-level keys: `title` (required), `description`, `nodes` (required), `groups`,
 | `badge` | A number or short string shown on the card corner. |
 | `uses` | List of short tags drawn as "uses: a · b". Entries that match a node id become links in the drawer. |
 | `chips` | Small boxes inside the card, such as virtual hosts: `- { label: app.*, sub: "→ backend :9100" }`. |
-| `w` | Card width in px (default 178). Narrow it in dense rows. |
+| `w` | Card width in px (default 178, or 280 with `fields`). Narrow it in dense rows. |
 | `description` | Markdown for the detail drawer, inline. |
 | `doc` | Path to a markdown file for the drawer. Defaults to `nodes/<id>.md` when that file exists. |
 | `links` | `- { label: Runbook, url: https://... }` |
@@ -38,7 +40,37 @@ Top-level keys: `title` (required), `description`, `nodes` (required), `groups`,
 | `tags` | Free-form tags. |
 | `diagram` | Name of another diagram (its folder under `diagrams/`) that shows the inside of this node: `diagram: payments`. The card gets **Expand** (show it in place, as a group around the whole inner diagram) and **Open** (move into it, with a trail and Back button). Clicking the node shows the inner diagram as a picture in the drawer. Long form: `diagram: { name: payments, view: refunds, scenario: pay, mode: both, expanded: false }`. See "Nested diagrams" below. |
 
-Node kinds: `client user ui external service gateway worker container function database cache storage queue agent network vm auth monitor`. Add or override your own with a top-level `kinds:` map: `ledger: { icon: lucide:book-open, family: amber }`.
+Node kinds: `client user ui external service gateway worker container function database cache storage queue agent network vm auth monitor entity`. Add or override your own with a top-level `kinds:` map: `ledger: { icon: lucide:book-open, family: amber }`.
+
+## Entities
+
+A node with `fields` is an entity: a table, a collection, an index. Use `kind: entity` (blue, a table icon); the card is wider by default.
+
+```yaml
+nodes:
+  orders:
+    kind: entity
+    title: orders
+    pill: TABLE
+    lines: [One row per checkout.]
+    fields:
+      - id: { type: uuid, key: true }                       # `#` in front
+      - customer_id: { type: uuid, ref: customers.id }      # blue, with an arrow; draws the relation
+      - status: pending | paid | shipped
+      - total_cents: { type: integer, note: In the smallest currency unit. }
+      - placed_at: timestamp
+      - notes                                               # a field with no type
+  customers: { kind: entity, title: customers, fields: [{ id: { type: uuid, key: true } }] }
+edges:
+  - orders.customer_id -> customers.id: N:1    # the same edge by hand, to give it a label
+```
+
+- **One field per list item**: `- name`, `- name: type` or `- name: { type, key, ref, note }`. A field is never written as `{ name: id, type: uuid }`, because a field called `name` would be ambiguous.
+- **`ref`** is a node id or `node.field`. Each one draws a `relation` edge from this entity to that one, unless you write the same edge by hand (then yours wins, which is how you add a label such as `N:1`). A field that points at its own entity is marked but draws nothing.
+- **Edges** may name a field on either end: `orders.customer_id -> customers.id`. Names with dots (`meta.version`) work; a node id always wins over a split. Names with spaces need the `{ from: ..., to: ... }` form.
+- An edge between two entities is a `relation` unless it has another `kind`.
+- The line runs between the two cards. The field names say which columns the relation is about.
+- Entities are plain nodes: `in:`, `status`, `uses`, `description` and scenarios all work. A dashed look for something you do not own is `status: optional`.
 
 ## Groups
 
@@ -71,9 +103,9 @@ edges:
 
 | Field | Meaning |
 |---|---|
-| `from`, `to` | Node ids (required in the object form). |
+| `from`, `to` | Node ids (required in the object form). For an entity, `node.field` names the field the relation is about. |
 | `label` | Short: a protocol, route or event name. |
-| `kind` | Line style: `http` (default), `channel` (persistent: websocket, gRPC), `tunnel`, `queue`, `ws`, `data`, or one you define in `edgeKinds:`. |
+| `kind` | Line style: `http` (default), `channel` (persistent: websocket, gRPC), `tunnel`, `queue`, `ws`, `data`, `relation` (between entities), or one you define in `edgeKinds:`. |
 | `both` | Arrow at both ends (same as `<->`). |
 | `hidden` | Not drawn and not in the legend, but scenarios can fly along it. Use it for relationships a scenario needs and the picture does not. |
 | `status` | As for nodes. |
@@ -95,7 +127,7 @@ views:
   overview:
     title: Overview
     keys: true            # letter keys on edges
-    interfaces: true      # table of every edge under the diagram (key, from → to, kind, auth, payload)
+    interfaces: true      # table of every edge under the diagram (key, from → to, kind, auth, payload), folded until opened
     summary: Markdown shown above the diagram.
   backend:
     title: Backend only
@@ -105,6 +137,22 @@ views:
 ```
 
 Edges whose two ends are both in the view are included. A scenario plays on the first view unless it sets `view:`; every node it uses must be in that view.
+
+## Defaults
+
+By default a diagram opens on its first view, on its overview, with every scenario waiting to be chosen. `defaults:` changes how this one opens; every field is optional.
+
+```yaml
+defaults:
+  scenario: sign-in     # selected first; its view comes with it. It waits for play unless autoplay is on
+  view: overview        # shown first (when it names a scenario too, that scenario must play on this view)
+  mode: sequence        # flow, sequence or story: how a scenario with no `mode:` of its own is drawn
+  sidebar: false        # the panel over the picture (outline, views) starts folded to a button
+  subtitles: false      # the bar under the picture shows no title and description for the step
+  autoplay: true        # play `scenario` once the diagram is on screen (needs `scenario`)
+```
+
+A page's own props on `<Diagram>` (`view`, `scenario`, `mode`, `autoplay`, `sidebar`, `subtitles`) win over these, and a scenario's own `mode:` wins over `defaults.mode`. Use it for the way a diagram nearly always opens, not to hide anything: the reader can still reach every view and scenario.
 
 ## Nested diagrams
 

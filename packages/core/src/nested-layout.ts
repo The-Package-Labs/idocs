@@ -29,12 +29,18 @@ export interface InnerLayout {
 
 export type Diagrams = Record<string, CompiledDiagram | undefined>
 
-/** The view a node's diagram shows when opened: the one named, the scenario's, or the first. */
+/**
+ * The view a node's diagram shows when opened: the one the node names, its scenario's, the one the
+ * diagram opens on by itself, or the first.
+ */
 export function openingView(diagram: CompiledDiagram, ref: NodeDiagram): string {
-  const has = (id: string | undefined) => diagram.views.some((v) => v.id === id)
-  if (has(ref.view)) return ref.view!
-  const fromScenario = diagram.scenarios.find((s) => s.id === ref.scenario)?.view
-  return has(fromScenario) ? fromScenario! : diagram.views[0]!.id
+  const has = (id: string | undefined): id is string => diagram.views.some((v) => v.id === id)
+  const of = (scenario?: string) => diagram.scenarios.find((s) => s.id === scenario)?.view
+  return (
+    [ref.view, of(ref.scenario), of(diagram.defaults?.scenario), diagram.defaults?.view].find(
+      has,
+    ) ?? diagram.views[0]!.id
+  )
 }
 
 /** Whether a reader may show this node's diagram in place: it is at hand and not limited to `open`. */

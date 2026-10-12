@@ -25,6 +25,7 @@ export const BUILTIN_KINDS: Record<string, KindDef> = {
   vm: { icon: 'lucide:box', family: 'violet' },
   auth: { icon: 'lucide:key-round', family: 'teal' },
   monitor: { icon: 'lucide:activity', family: 'teal' },
+  entity: { icon: 'lucide:table-2', family: 'blue' },
 }
 
 export const BUILTIN_EDGE_KINDS: Record<string, EdgeKindDef> = {
@@ -34,6 +35,7 @@ export const BUILTIN_EDGE_KINDS: Record<string, EdgeKindDef> = {
   queue: { label: 'Queue / broker', color: 'ok', width: 2, dash: '2 4' },
   ws: { label: 'WebSocket', color: 'ink', width: 1.6, dash: '7 4' },
   data: { label: 'Data access', color: 'muted', width: 1.3 },
+  relation: { label: 'Relation between entities', color: 'muted', width: 1.4 },
 }
 
 export const STEP_KIND_COLORS: Record<string, string> = {
@@ -45,3 +47,5 @@ export const STEP_KIND_COLORS: Record<string, string> = {
 }
 
 export const DEFAULT_NODE_WIDTH = 178
+/** Cards with fields need room for a name and a type side by side. */
+export const DEFAULT_ENTITY_WIDTH = 280

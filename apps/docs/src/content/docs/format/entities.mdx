@@ -1,0 +1,89 @@
+---
+title: Entities
+description: Cards that list fields, for data models, schemas and indexes, and the relations between them.
+tableOfContents:
+  maxHeadingLevel: 3
+---
+
+import Diagram from '@the-package-labs/idocs-astro/Diagram.astro'
+import { Aside } from '@astrojs/starlight/components'
+
+An **entity** is a node that lists its fields: a database table, a document collection, a search index. Give a node `fields` and its card becomes a header with one row per field, a name on the left and a type on the right.
+
+<Diagram name="ref-entities" showDescription />
+
+```yaml
+nodes:
+  orders:
+    kind: entity
+    title: orders
+    pill: TABLE
+    lines: [One row per checkout.]
+    fields:
+      - id: { type: uuid, key: true }
+      - customer_id: { type: uuid, ref: customers.id }
+      - status: pending | paid | shipped | cancelled
+      - total_cents: integer
+```
+
+`kind: entity` gives the card a blue top edge and a table icon. A card with `fields` is wider by default (280 px) so a name and a type fit side by side. Set `w` to change it.
+
+## Writing a field
+
+Each list item is one field, in one of three shapes:
+
+```yaml
+fields:
+  - notes                                  # a name
+  - email: text                            # a name and a type
+  - id: { type: uuid, key: true }          # a name and options
+```
+
+| Option | Meaning |
+|---|---|
+| `type` | Shown on the right, muted. Anything you like: `uuid`, `string[]`, `pending \| paid`. |
+| `key` | Part of the primary key. Shown with a `#` in front, in bold. |
+| `ref` | The entity this field points at, like a foreign key. See below. |
+| `note` | Shown when the reader hovers the row, and in the drawer. |
+
+Long types wrap onto several lines, and the card grows to fit.
+
+<Aside type="caution">
+A field is never written as `{ name: id, type: uuid }`. The name is the key, so a field that is itself called `name` or `type` is no different from any other: `- name: text`.
+</Aside>
+
+## Relations
+
+A field with `ref` points at another entity. It is drawn in the accent colour with an arrow, and idocs draws the relation between the two cards for you.
+
+```yaml
+- customer_id: { type: uuid, ref: customers.id }
+```
+
+`ref` is a node id, or `node.field` to say which field it points at. Field names can contain dots, as in `meta.version`. If a node id and a split of the text could both match, the node id wins.
+
+To label a relation, write the edge by hand, naming the fields at either end:
+
+```yaml
+edges:
+  - orders.customer_id -> customers.id: N:1
+```
+
+An edge you write for the same two fields replaces the one `ref` would draw, so a field never gets two lines. An edge between two entities is a `relation` unless you give it another `kind`; it appears in the legend as **Relation between entities**.
+
+<Aside>
+The line runs between the two cards. The field names on the edge say which columns the relation is about, and the drawer lists them. A field that points at its own entity is marked with the arrow but draws no line.
+</Aside>
+
+## Mistakes it catches
+
+| You wrote | idocs says |
+|---|---|
+| `ref: customer.id` | `Field "customer_id" points at "customer.id", which is not a node. Did you mean "customers"?` |
+| `ref: customers.idd` | `Node "customers" has no field "idd". Did you mean "id"?` |
+| the same field twice | `Field "id" appears twice in "orders"` |
+| two fields in one item | ``One field per list item: `- name: type` `` |
+
+## Putting entities on the page
+
+Entities are ordinary nodes, so everything else works: put them in [groups](../groups/) to make one zone per area of the model, give them a `status` such as `planned` for tables you have not built yet, and write a [node doc](../node-docs/) when a table needs more than a note. `status: optional` draws a dashed card, which suits something you read but do not own, like a token from an identity provider.

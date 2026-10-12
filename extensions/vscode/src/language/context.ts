@@ -324,6 +324,8 @@ export function contextOf(path: string[], file: 'diagram' | 'scenario'): Context
   if (STEP_PATH.test(joined)) return 'step'
   const [a, , c, d] = p
   switch (a) {
+    case 'defaults':
+      return p.length === 1 ? 'defaults' : undefined
     case 'nodes':
       if (p.length === 2) return 'node'
       if (p.length === 4 && c === 'chips' && d === '-') return 'chip'

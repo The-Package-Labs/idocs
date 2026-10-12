@@ -3,7 +3,7 @@ title: Online store checkout
 description: |
   How a shopper's browser reaches the store, what the backend does with each request,
   and where things can go wrong. **Click any box** for details, or pick a scenario
-  in the panel beside the diagram and press play to watch a request travel through the system.
+  on the bar under the diagram and press play to watch a request travel through the system.
 
 groups:
   edge:

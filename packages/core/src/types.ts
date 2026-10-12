@@ -36,11 +36,25 @@ export interface NodeDiagram {
   expanded?: boolean
 }
 
+/** A row of an entity card: one column, property or attribute of what the node stores. */
+export interface CompiledField {
+  name: string
+  type?: string
+  /** Part of the primary key. */
+  key?: boolean
+  /** The node (and field) this one points at, like a foreign key. Each one draws a relation. */
+  ref?: { node: string; field?: string }
+  note?: string
+}
+
 export interface CompiledNode {
   id: string
   title: string
   sub?: string
+  /** A short label in the card header, like `TABLE` or `ES INDEX`. */
+  pill?: string
   lines: string[]
+  fields: CompiledField[]
   icon?: IconData
   kind?: string
   family?: Family
@@ -86,6 +100,9 @@ export interface CompiledEdge {
   id: string
   from: string
   to: string
+  /** Set when the edge starts or ends on one field of an entity card. */
+  fromField?: string
+  toField?: string
   label?: string
   kind: string
   both: boolean
@@ -165,10 +182,24 @@ export interface CompiledScenario {
   steps: CompiledStep[]
 }
 
+/**
+ * How a diagram opens, as its author wrote it. A page's own choices (the props of `<Diagram>`) win
+ * over these. Validated by the compiler: the view and the scenario exist, and agree.
+ */
+export interface DiagramDefaults {
+  view?: string
+  scenario?: string
+  mode?: ScenarioMode
+  sidebar?: boolean
+  subtitles?: boolean
+  autoplay?: boolean
+}
+
 export interface CompiledDiagram {
   name: string
   title: string
   descriptionHtml?: string
+  defaults?: DiagramDefaults
   nodes: Record<string, CompiledNode>
   groups: Record<string, CompiledGroup>
   edges: Record<string, CompiledEdge>
