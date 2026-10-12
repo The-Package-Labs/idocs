@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=../diagram.schema.json
+title: Stock reservations
+description: |
+  The deepest level of this example: three levels down from the shop.
+
+nodes:
+  api: { kind: service, icon: go, title: Stock API }
+  ledger: { kind: database, icon: redis, title: Reservation ledger, sub: TTL 15 min }
+  warehouse: { kind: external, title: Warehouse system }
+
+edges:
+  - api -> ledger: { kind: data, label: SETNX }
+  - api -> warehouse: { kind: channel, label: check }
+
+scenarios:
+  reserve:
+    title: Hold items for 15 minutes
+    steps:
+      - api -> warehouse: is it in stock?
+      - warehouse -> api: { label: 3 left, kind: response }
+      - api -> ledger: { label: hold 2, kind: lookup }
+      - at ledger:
+          label: expires in 15 min
+          note: Unpaid orders give their stock back without any cleanup job.

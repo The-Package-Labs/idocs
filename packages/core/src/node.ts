@@ -2,11 +2,13 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 import { compileDiagram, type Diagnostic } from './compile'
+import { type LinkEntry, linkDiagrams } from './nesting'
 import type { CompiledDiagram } from './types'
 
 export * from './compile'
 export { loadIconSets, resolveIcon, searchIcons } from './icons'
 export { renderMarkdown } from './markdown'
+export { type LinkEntry, linkDiagrams, nestedDiagrams } from './nesting'
 export { authoringJsonSchema, FamilySchema, KNOWN_KEYS, RootSchema } from './schema'
 
 export interface LoadedProject {
@@ -27,6 +29,7 @@ export function loadProject(root: string, dir = 'diagrams'): LoadedProject {
   const base = diagramsDir(root, dir)
   const result: LoadedProject = { diagrams: {}, diagnostics: [], watch: [base] }
   if (!existsSync(base)) return result
+  const entries: Record<string, LinkEntry> = {}
 
   for (const name of readdirSync(base).sort()) {
     const folder = join(base, name)
@@ -46,7 +49,7 @@ export function loadProject(root: string, dir = 'diagrams'): LoadedProject {
           }))
       : []
 
-    const { diagram, diagnostics } = compileDiagram({
+    const { diagram, diagnostics, where } = compileDiagram({
       name,
       file: relative(root, file),
       text: readFileSync(file, 'utf8'),
@@ -55,8 +58,10 @@ export function loadProject(root: string, dir = 'diagrams'): LoadedProject {
     })
     result.diagnostics.push(...diagnostics)
     if (diagram) result.diagrams[name] = diagram
+    entries[name] = { diagram, where }
     result.watch.push(folder)
   }
+  result.diagnostics.push(...linkDiagrams(entries))
   return result
 }
 

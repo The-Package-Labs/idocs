@@ -2,11 +2,12 @@
 // you to other diagrams unless locked, and shows the node your cursor is in.
 import { relative } from 'node:path'
 import * as vscode from 'vscode'
+import { sameProject } from '../model/links'
 import { isInside } from '../model/paths'
 import { contains, symbolAt } from '../model/references'
 import { makeNonce, previewHtml } from '../preview/html'
 import type { FromWebview, Problem, ToWebview } from '../preview/protocol'
-import type { DiagramService, FolderState } from './service'
+import { type DiagramService, diagnosticsOf, type FolderState } from './service'
 import { settings } from './settings'
 import { toRange } from './symbols'
 
@@ -203,6 +204,7 @@ export class PreviewManager implements vscode.Disposable {
       name: state.name,
       folder: state.folder,
       diagram: state.lastGood ?? null,
+      nested: this.service.nested(state.folder),
       stale: !state.outcome.diagram,
       problems: problems(state),
       locked: this.locked,
@@ -218,7 +220,8 @@ export class PreviewManager implements vscode.Disposable {
   }
 
   private onCompiled(state: FolderState): void {
-    if (state.folder !== this.target) return
+    // A diagram of the same project may be one the previewed diagram opens.
+    if (!this.target || !sameProject(this.target, [state]).length) return
     // In `save` mode only a save, not typing, brings the preview up to date.
     if (state.cause === 'edit' && settings().refreshOn === 'save') return
     this.push()
@@ -365,7 +368,7 @@ export class PreviewManager implements vscode.Disposable {
 }
 
 function problems(state: FolderState): Problem[] {
-  return state.outcome.diagnostics.map((d) => ({
+  return diagnosticsOf(state).map((d) => ({
     severity: d.severity,
     message: d.message,
     hint: d.hint,

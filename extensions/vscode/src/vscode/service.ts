@@ -3,12 +3,14 @@
 // that compiled, publishes diagnostics, and tells the preview when something changed.
 import { basename, join } from 'node:path'
 import type { CompiledDiagram } from '@the-package-labs/idocs-core'
+import type { Diagnostic } from '@the-package-labs/idocs-core/browser'
 import * as vscode from 'vscode'
 import type { Entity, ProjectIds } from '../language/completion'
 import { diagnosticSpan } from '../language/diagnostics'
 import { type CompileOutcome, compileFolder, refBasesFor } from '../model/compile'
 import { type Declaration, declarationsOf } from '../model/declarations'
 import type { IconResolver } from '../model/icons'
+import { linkProblems, nestedFor, sameProject } from '../model/links'
 import { DIAGRAM_FILES, type FileRole, isInside, type Located, locate } from '../model/paths'
 import { type Reference, referencesIn } from '../model/references'
 import { type Fs, nodeFs } from '../model/sources'
@@ -32,7 +34,18 @@ export interface FolderState {
   lastGood?: CompiledDiagram
   /** What triggered this compile: typing, or a save, an open, a close or a change on disk. */
   cause: 'edit' | 'save'
+  /** Problems with the diagrams this one opens: they depend on other folders, so they are kept apart. */
+  links: Diagnostic[]
 }
+
+/** Everything wrong with a diagram, in its own files and across diagrams. */
+export const diagnosticsOf = (state: FolderState): Diagnostic[] => [
+  ...state.outcome.diagnostics,
+  ...state.links,
+]
+
+const sameDiagnostics = (a: Diagnostic[], b: Diagnostic[]) =>
+  JSON.stringify(a) === JSON.stringify(b)
 
 export class DiagramService implements vscode.Disposable {
   private readonly states = new Map<string, FolderState>()
@@ -41,6 +54,8 @@ export class DiagramService implements vscode.Disposable {
   private readonly reported = new Map<string, Set<string>>()
   private readonly parsed = new Map<string, FileModel & { text: string }>()
   private readonly disposables: vscode.Disposable[] = []
+  /** While a batch compiles, neighbours are not all known yet, so linking waits for its end. */
+  private deferLinks = false
   private readonly emitter = new vscode.EventEmitter<FolderState>()
   private readonly removed = new vscode.EventEmitter<string>()
   readonly diagnostics = vscode.languages.createDiagnosticCollection('idocs')
@@ -110,13 +125,19 @@ export class DiagramService implements vscode.Disposable {
     const glob = `**/diagrams/*/{${DIAGRAM_FILES.join(',')}}`
     const found = await vscode.workspace.findFiles(glob, '**/node_modules/**', 500)
     const compiled = new Set<string>()
-    for (const uri of found) {
-      const where = this.locate(uri)
-      if (where && !compiled.has(where.folder)) {
-        compiled.add(where.folder)
-        this.compile(where.folder)
+    this.deferLinks = true
+    try {
+      for (const uri of found) {
+        const where = this.locate(uri)
+        if (where && !compiled.has(where.folder)) {
+          compiled.add(where.folder)
+          this.compile(where.folder)
+        }
       }
+    } finally {
+      this.deferLinks = false
     }
+    for (const folder of compiled) this.relink(folder, true)
     return [...compiled]
   }
 
@@ -177,8 +198,10 @@ export class DiagramService implements vscode.Disposable {
         outcome,
         lastGood: outcome.diagram ?? previous?.lastGood,
         cause: this.causes.get(folder) ?? 'save',
+        links: previous?.links ?? [],
       }
       this.states.set(folder, state)
+      if (!this.deferLinks) this.relink(folder)
       this.publish(state, fs)
       this.emitter.fire(state)
       return state
@@ -208,8 +231,10 @@ export class DiagramService implements vscode.Disposable {
       },
       lastGood: previous?.lastGood,
       cause: this.causes.get(folder) ?? 'save',
+      links: previous?.links ?? [],
     }
     this.states.set(folder, state)
+    if (!this.deferLinks) this.relink(folder)
     this.publish(state, this.fs)
     this.emitter.fire(state)
     return state
@@ -219,6 +244,38 @@ export class DiagramService implements vscode.Disposable {
     this.states.delete(folder)
     this.clearDiagnostics(folder)
     this.removed.fire(folder)
+    // Diagrams that opened this one have a new problem to show.
+    this.relink(folder)
+  }
+
+  /**
+   * Check the diagrams of a project against each other. What one folder says about another changes
+   * when either is edited, so the neighbours are refreshed too. `folder` itself is published by
+   * the caller, unless `publishSelf` says nobody will.
+   */
+  private relink(folder: string, publishSelf = false): void {
+    const project = sameProject(folder, this.states.values())
+    const problems = linkProblems(project.map((s) => s.outcome))
+    for (const state of project) {
+      const links = problems.get(state.folder) ?? []
+      if (sameDiagnostics(links, state.links)) continue
+      state.links = links
+      if (state.folder === folder && !publishSelf) continue
+      this.publish(state, this.fs)
+      this.emitter.fire(state)
+    }
+  }
+
+  /** The diagrams a diagram can open, as far as they have compiled: what its preview carries. */
+  nested(folder: string): Record<string, CompiledDiagram> {
+    return nestedFor(
+      folder,
+      sameProject(folder, this.states.values()).map((s) => ({
+        folder: s.folder,
+        name: s.name,
+        diagram: s.lastGood,
+      })),
+    )
   }
 
   // -- Diagnostics ------------------------------------------------------------------------------
@@ -239,7 +296,7 @@ export class DiagramService implements vscode.Disposable {
       }
       return lines
     }
-    for (const d of state.outcome.diagnostics) {
+    for (const d of diagnosticsOf(state)) {
       const span = diagnosticSpan(d, linesOf(d.file))
       const range = new vscode.Range(
         span.start.line,
@@ -345,6 +402,11 @@ export class DiagramService implements vscode.Disposable {
         .readDir(join(folder, 'nodes'))
         .filter((f) => f.endsWith('.md'))
         .map((f) => `nodes/${f}`),
+      // Not this one: a diagram cannot be inside itself.
+      diagrams: sameProject(folder, this.states.values())
+        .filter((s) => s.folder !== folder)
+        .map((s) => ({ id: s.name, detail: s.lastGood?.title }))
+        .sort((a, b) => a.id.localeCompare(b.id)),
     }
   }
 

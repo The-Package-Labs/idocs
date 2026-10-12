@@ -44,6 +44,21 @@ export const NodeSchema = z.strictObject({
   links: z.array(z.strictObject({ label: z.string(), url: z.string() })).optional(),
   refs: z.array(z.string()).optional().describe('Source files or URLs this node is based on.'),
   tags: z.array(z.string()).optional(),
+  diagram: z
+    .union([
+      z.string().min(1),
+      z.strictObject({
+        name: z.string().min(1).describe('Folder name of the diagram, under diagrams/.'),
+        view: Id.optional().describe(
+          'View to open first. Defaults to the scenario view, then the first.',
+        ),
+        scenario: Id.optional().describe('Scenario to select when the diagram opens.'),
+      }),
+    ])
+    .optional()
+    .describe(
+      'Another diagram (its folder name) that shows the inside of this node. The card gets a "Look inside" button that opens it one level deeper, with a way back.',
+    ),
 })
 
 export const GroupSchema = z.strictObject({

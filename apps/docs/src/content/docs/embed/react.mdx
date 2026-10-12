@@ -57,7 +57,8 @@ Import the stylesheet once. Install `@the-package-labs/idocs-react` with `react`
 | `maxHeight` | number | The tallest the canvas may grow, in pixels. Default 780. |
 | `showTitle` | boolean | Show the diagram's title. |
 | `showDescription` | boolean | Show its description. |
-| `hash` | boolean | Keep the scenario and step in the URL hash. Default `true`. |
+| `hash` | boolean | Keep the scenario, step and opened nodes in the URL hash. Default `true`. |
+| `diagrams` | `Record<string, CompiledDiagram>` | The diagrams that nodes with a `diagram:` key open, by name: `nestedDiagrams(diagrams, 'shop')`. See [nested diagrams](../../format/nested-diagrams/#embedding). |
 | `className` | string | An extra class on the root element. |
 
 ## Things to know

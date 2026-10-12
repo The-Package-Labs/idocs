@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Nested diagrams. A node with `diagram: <name>` shows a **Look inside** strip in the preview, which opens that diagram in place with a trail back, and the preview follows edits to the diagrams it opens.
+- Problems for nodes that open a diagram that does not exist, or a view or scenario it does not have, or that lead back to themselves, as `idocs check` reports them.
+- Completion offers the other diagrams of the project after `diagram:`.
+
 ## 0.2.0
 
 - Renamed from docspp to idocs, and moved to [The-Package-Labs/idocs](https://github.com/The-Package-Labs/idocs). The extension id is now `thepackagelabs.idocs-vscode`; uninstall `packagelab.docspp-vscode`. The language id is `idocs`, commands and settings start with `idocs.` (copy any `docspp.*` settings across), and Markdown fences are `idocs`.

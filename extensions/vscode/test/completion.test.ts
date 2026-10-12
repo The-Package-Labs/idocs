@@ -19,6 +19,10 @@ const ids: ProjectIds = {
   customKinds: ['partner'],
   customEdgeKinds: ['batch'],
   docs: ['nodes/api.md'],
+  diagrams: [
+    { id: 'orders', detail: 'Order service' },
+    { id: 'payments', detail: 'Payments' },
+  ],
 }
 
 const catalog = {
@@ -35,6 +39,23 @@ function run(marked: string, file: 'diagram' | 'scenario' = 'diagram'): Completi
   return complete(req)
 }
 const labels = (c: Completion | undefined) => c?.items.map((i) => i.label) ?? []
+
+describe('diagram', () => {
+  it('is a node key, documented', () => {
+    const c = run('nodes:\n  api:\n    |')
+    expect(c?.items.find((i) => i.label === 'diagram')?.documentation).toMatch(/Look inside/)
+  })
+
+  it('offers the other diagrams of the project after it', () => {
+    const c = run('nodes:\n  api:\n    diagram: |')
+    expect(labels(c)).toEqual(['orders', 'payments'])
+    expect(c?.items[0]).toMatchObject({ kind: 'diagram', detail: 'Order service' })
+  })
+
+  it('offers nothing inside the long form, whose view and scenario belong to another diagram', () => {
+    expect(labels(run('nodes:\n  api:\n    diagram: { name: orders, view: | }'))).toEqual([])
+  })
+})
 
 describe('keys', () => {
   it('offers the root keys', () => {

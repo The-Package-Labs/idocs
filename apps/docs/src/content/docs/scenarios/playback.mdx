@@ -50,6 +50,8 @@ The format is `#<diagram>=<scenario>[.<step>]`, where the step is the number sho
 
 Opening such a link selects the scenario, switches to its view, and shows the step already played, paused, so the reader decides when to continue.
 
+A link can also open [nested diagrams](../../format/nested-diagrams/#deep-links): `#shop~=orders/stock` opens the `orders` node, then the `stock` node inside it. The scenario of the diagram at that level is keyed by the diagram names that lead to it, joined with `/`: `#shop/orders/stock=reserve.3`.
+
 <Aside type="note">
   The address updates when playback stops, not on every frame. Embeds that should not touch the address, such as a decorative demo, can pass `hash={false}`. See [the Diagram component](../../embed/diagram-component/).
 </Aside>

@@ -1,0 +1,86 @@
+---
+title: Nested diagrams
+description: Let a node hold a whole diagram of its own, so readers can look inside it and find their way back.
+tableOfContents:
+  maxHeadingLevel: 3
+---
+
+import Diagram from '@the-package-labs/idocs-astro/Diagram.astro'
+import { Aside } from '@astrojs/starlight/components'
+
+One picture cannot show a system and the inside of every part of it. Give a node a `diagram:` and the card becomes a door: the reader opens it, lands in that diagram with its own views, scenarios and player, and comes back to exactly where they were.
+
+Try it. **Look inside** the order service, then look inside the stock card there, then use **Back**.
+
+<Diagram name="nest-shop" showDescription />
+
+## Declare it
+
+Name the diagram folder, as it is under `diagrams/`:
+
+```yaml title="diagrams/nest-shop/diagram.yaml"
+nodes:
+  orders:
+    kind: service
+    title: Order service
+    diagram: nest-orders
+```
+
+That is all. The inner diagram is an ordinary diagram with its own `diagram.yaml`, nodes, views and scenarios. Several nodes, in several diagrams, can open the same one.
+
+To open it on a particular view or scenario, use the long form:
+
+```yaml
+  payments:
+    title: Payments
+    diagram: { name: payments, scenario: pay }
+```
+
+| Key | Meaning |
+|---|---|
+| `name` | The folder name of the diagram to open. |
+| `view` | The view to show first. Defaults to the scenario's own view, then the first view. |
+| `scenario` | A scenario to select when it opens. It starts paused, at the beginning. |
+
+## What the reader sees
+
+- **On the card**, a *Look inside* strip and a small stacked edge, so a node that holds a diagram looks different from one that does not.
+- **In the drawer**, the same action at the top, with the name of the diagram and how much is in it. This is the way in for the keyboard and for screen readers.
+- **After opening**, the diagram zooms in from the card, and a trail appears above it: `Online shop › Order service › Stock`. **Back** goes up one level, any crumb jumps straight to that level, and <kbd>Esc</kbd> goes up one level too (unless the drawer is open, which closes first).
+- **After going back**, the parent is exactly as it was left: same view, same scenario and step, same open drawer. The card that was opened pulses once, so the eye finds its place.
+
+While a level is covered by one opened from it, its scenario pauses.
+
+The inner diagram's description, if it has one, is shown above it, since the page around it was not written for that diagram.
+
+## Deep links
+
+The way down is part of the address, so a link can open straight inside:
+
+```text
+#nest-shop~=orders/stock&nest-shop/nest-orders/nest-stock=reserve.3
+```
+
+The first part is the nodes to open, level by level. The second is the scenario and step of the diagram at that level, named by the path of diagrams that leads to it.
+
+## Rules
+
+A diagram cannot be inside itself. `idocs check` reports a node that opens its own diagram, or diagrams that open each other in a circle, and names the circle. It also reports a name, view or scenario that does not exist, at the line that wrote it.
+
+<Aside type="tip" title="When to nest">
+Nest when the inside of a node is a story of its own, with its own nodes and scenarios. If a node only needs a paragraph, write a [node doc](../node-docs/). If it only needs a different slice of the same model, use a [view](../views/).
+</Aside>
+
+## Embedding
+
+`<Diagram>` does the work: it sends the page every diagram the first one can reach, and nothing else. A diagram with no `diagram:` keys sends nothing extra.
+
+In your own React app, pass the diagrams yourself:
+
+```tsx
+import { nestedDiagrams } from '@the-package-labs/idocs-core'
+
+<DiagramView diagram={diagrams.shop} diagrams={nestedDiagrams(diagrams, 'shop')} />
+```
+
+A node whose diagram is not in `diagrams` is drawn like any other node. See [props and options](../../reference/props/).

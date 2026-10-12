@@ -6,6 +6,7 @@ import {
   type CompileResult,
   compileDiagram,
   type Diagnostic,
+  type Where,
 } from '@the-package-labs/idocs-core/browser'
 import type { IconResolver } from './icons'
 import { type Fs, gatherSource } from './sources'
@@ -21,6 +22,8 @@ export interface CompileOutcome {
   diagram?: CompiledDiagram
   /** Errors and warnings. `file` is an absolute path. */
   diagnostics: Diagnostic[]
+  /** Where a path of the diagram is in its files, for the checks that span diagrams (`links.ts`). */
+  where?: Where
 }
 
 export interface CompileOptions {
@@ -45,6 +48,7 @@ export function compileFolder(folder: string, options: CompileOptions): CompileO
     file: source.file,
     diagram: result.diagram,
     diagnostics,
+    where: result.where,
   }
 }
 

@@ -15,7 +15,7 @@ This page is for contributors and the curious. You do not need any of it to use 
 <Diagram name="pipeline" scenario="build" maxHeight={560} />
 
 1. **Compile, on the server.** `@the-package-labs/idocs-core/node` reads `diagram.yaml`, expands shorthand, validates it with a Zod schema and resolves icons and Markdown. The result is a `CompiledDiagram`: plain JSON.
-2. **Hand over.** The Astro integration exposes every compiled diagram as `virtual:idocs/diagrams` and fails the build on errors. `<Diagram>` passes one diagram to a React island as props.
+2. **Hand over.** The Astro integration exposes every compiled diagram as `virtual:idocs/diagrams` and fails the build on errors. `<Diagram>` passes one diagram to a React island as props, along with every diagram it can open through a node's `diagram:` key. The checks that span diagrams (a name that does not exist, a circle) run once all of them have compiled, in `linkDiagrams`.
 3. **Measure and lay out, in the browser.** The island renders each card offscreen at its fixed width to learn its height, then calls `layoutView`. That runs ELK once per group, bottom up, then arranges the zones and routes the edges ELK cannot see.
 4. **Play.** `buildTimeline(scenario, edgeLengths)` turns a scenario into a timeline. `frameAt(timeline, t)` turns a time into a frame: where each packet is, which nodes are lit. The player is a clock that advances `t`.
 
@@ -34,6 +34,7 @@ packages/create-idocs   npm create idocs; carries a copy of the template
 ## Rules that keep it working
 
 - **The main entry of core stays browser-safe.** Nothing reachable from `src/index.ts` may import `node:*`, `yaml`, `zod`, Iconify or unified. They live behind `src/node.ts`, so the client bundle only gets layout, route, timeline and types.
+- **A level of a trail stays mounted.** Opening a node from a diagram hides the diagram under it instead of unmounting it, so the reader comes back to the same scenario, step and drawer. A hidden level must not measure or play: `useLayout` waits until it is shown, and the player pauses.
 - **Compiled output is JSON.** It crosses the server and client boundary as island props: no functions, classes, Maps or Dates.
 - **The timeline is pure.** `buildTimeline` and `frameAt` hold all playback logic. The React player only runs the clock, which makes scrubbing, stepping and testing trivial.
 - **The story model is pure too.** `buildStory(diagram, scenario)` turns a scenario into lanes, boxes and links. The view only measures the DOM and draws connectors over it.

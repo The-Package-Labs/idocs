@@ -25,7 +25,7 @@ Use the project's package manager for every command below (`pnpm idocs ...`, `np
 
 1. **Look at what exists.** `idocs list --json` shows the diagrams, views and scenarios. Extend a diagram rather than starting a second one for the same system.
 2. **Read the code you are documenting.** Never invent components, ports, routes or flows. Put the source files a node is based on in its `refs:` so readers can find them and `idocs check` warns when they move.
-3. **Pick a scope.** One diagram answers one question ("how does checkout work?"). Aim for 8 to 25 nodes. If it needs more, make a second **view** of the same model, not a second diagram.
+3. **Pick a scope.** One diagram answers one question ("how does checkout work?"). Aim for 8 to 25 nodes. If it needs more, make a second **view** of the same model. If one node has an inside worth a diagram of its own, give it `diagram: <name>` ("Nested diagrams" in [references/format.md](references/format.md)) instead of crowding the parent.
 4. **Write the model**: nodes, then groups, then edges. Declare nodes in reading order: order decides layout. Format: [references/format.md](references/format.md).
 5. **Add scenarios** for the flows a reader will ask about: the happy path first, then the failures that teach something. Format and writing advice: [references/scenarios.md](references/scenarios.md).
 6. **Check.** `idocs check --json`. Fix every error and every warning; messages carry `file:line:column` and a suggestion. Common ones: [references/troubleshooting.md](references/troubleshooting.md).

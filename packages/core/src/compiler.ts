@@ -5,6 +5,7 @@ import { type IconResult, iconFromSvg } from './icon-resolver'
 import { renderMarkdown } from './markdown'
 import { normalizeRoot } from './normalize'
 import { KNOWN_KEYS, type RootInput, RootSchema, type Step } from './schema'
+import { didYouMean } from './suggest'
 import type {
   CompiledDiagram,
   CompiledEdge,
@@ -44,9 +45,17 @@ export interface DiagramSource {
   readFile?: (relPath: string) => string | undefined
 }
 
+/** Where a dotted path of the diagram lives in the files it was compiled from. */
+export type Where = (path: (string | number)[]) => { file: string; line?: number; col?: number }
+
 export interface CompileResult {
   diagram?: CompiledDiagram
   diagnostics: Diagnostic[]
+  /**
+   * Lets a later pass (linking diagrams to each other) report at a line. A closure over the parsed
+   * files, so it is not enumerable: spreading, cloning or serialising a result leaves it behind.
+   */
+  readonly where?: Where
 }
 
 interface Source {
@@ -92,15 +101,17 @@ export function compileDiagram(src: DiagramSource, assets: CompilerAssets): Comp
     scenarioSources.set(f.id, s)
   }
 
-  const report = (severity: Diagnostic['severity'], message: string, path: Path, hint?: string) => {
+  const where: Where = (path) => {
     let source = main
     let p = path
     if (path[0] === 'scenarios' && typeof path[1] === 'string' && scenarioSources.has(path[1])) {
       source = scenarioSources.get(path[1])!
       p = path.slice(2)
     }
-    const pos = locate(source, p)
-    diagnostics.push({ severity, message, file: source.file, ...pos, path: path.join('.'), hint })
+    return { file: source.file, ...locate(source, p) }
+  }
+  const report = (severity: Diagnostic['severity'], message: string, path: Path, hint?: string) => {
+    diagnostics.push({ severity, message, ...where(path), path: path.join('.'), hint })
   }
   const error = (message: string, path: Path, hint?: string) => report('error', message, path, hint)
   const warn = (message: string, path: Path, hint?: string) =>
@@ -120,7 +131,7 @@ export function compileDiagram(src: DiagramSource, assets: CompilerAssets): Comp
 
   const diagram = build(parsed.data, src, error, warn, assets)
   if (diagnostics.some((d) => d.severity === 'error')) return { diagnostics }
-  return { diagram, diagnostics }
+  return Object.defineProperty({ diagram, diagnostics }, 'where', { value: where })
 }
 
 type Report = (message: string, path: Path, hint?: string) => void
@@ -275,6 +286,7 @@ function build(
       links: n.links ?? [],
       refs: n.refs ?? [],
       tags: n.tags ?? [],
+      diagram: typeof n.diagram === 'string' ? { name: n.diagram } : n.diagram,
     }
   }
 
@@ -790,31 +802,4 @@ function allowedKeysFor(path: PropertyKey[]): readonly string[] | undefined {
     default:
       return undefined
   }
-}
-
-function didYouMean(word: string, options: readonly string[]): string | undefined {
-  let best: string | undefined
-  let bestDist = Math.max(2, Math.floor(word.length / 3)) + 1
-  for (const o of options) {
-    const d = levenshtein(word.toLowerCase(), o.toLowerCase())
-    if (d < bestDist) {
-      best = o
-      bestDist = d
-    }
-  }
-  return best ? `Did you mean "${best}"?` : undefined
-}
-
-function levenshtein(a: string, b: string): number {
-  const row = Array.from({ length: b.length + 1 }, (_, i) => i)
-  for (let i = 1; i <= a.length; i++) {
-    let prev = row[0]!
-    row[0] = i
-    for (let j = 1; j <= b.length; j++) {
-      const tmp = row[j]!
-      row[j] = Math.min(row[j]! + 1, row[j - 1]! + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1))
-      prev = tmp
-    }
-  }
-  return row[b.length]!
 }

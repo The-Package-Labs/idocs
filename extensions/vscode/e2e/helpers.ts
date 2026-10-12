@@ -157,13 +157,21 @@ export async function open(
 
 export function message(
   diagram: CompiledDiagram | null,
-  options: { problems?: Problem[]; stale?: boolean; locked?: boolean; folder?: string } = {},
+  options: {
+    problems?: Problem[]
+    stale?: boolean
+    locked?: boolean
+    folder?: string
+    /** The diagrams its nodes open, by name. */
+    nested?: Record<string, CompiledDiagram>
+  } = {},
 ): ToWebview {
   return {
     type: 'diagram',
     name: diagram?.name ?? 'hello',
     folder: options.folder ?? '/p/diagrams/hello',
     diagram,
+    nested: options.nested ?? {},
     stale: options.stale ?? false,
     problems: options.problems ?? [],
     locked: options.locked ?? false,

@@ -250,6 +250,34 @@ describe('preview webview', () => {
     await h.close()
   })
 
+  it('looks inside a node that holds a diagram, under the real policy, and comes back', async () => {
+    const h = await open(server, { width: 1100, height: 900 })
+    const nested = Object.fromEntries(
+      ['nest-orders', 'nest-stock', 'payments'].map((n) => [n, compileExample(n)]),
+    )
+    await h.post(message(compileExample('nest-shop'), { nested }))
+    await h.page.waitForSelector('[data-node="orders"]')
+    expect(await h.page.locator('[data-level="0"] [data-node] .idocs-node-inside').count()).toBe(2)
+
+    await h.page.locator('[data-level="0"] [data-node="orders"] .idocs-node-inside').click()
+    await h.page.waitForSelector('[data-level="1"] [data-node="stock"]')
+    expect(await h.page.locator('.idocs-crumb[aria-current="location"]').textContent()).toContain(
+      'Order service',
+    )
+    await shot(h, 'nested-dark')
+
+    // The editor is told about clicks on the diagram being edited, not on one opened from it.
+    await h.page.locator('[data-level="1"] [data-node="api"]').click()
+    expect((await h.sent()).filter((m) => (m as { type: string }).type === 'reveal-node')).toEqual(
+      [],
+    )
+
+    await h.page.getByRole('button', { name: /Back to/ }).click()
+    await h.page.locator('[data-level="0"]').waitFor({ state: 'visible' })
+    expect(h.problems).toEqual([])
+    await h.close()
+  })
+
   it('has the paths it needs', () => {
     expect(extensionRoot).toContain('extensions/vscode')
   })

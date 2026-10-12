@@ -47,3 +47,48 @@ describe('run check', () => {
     }
   })
 })
+
+describe('nested diagrams', () => {
+  function folders(files: Record<string, string>) {
+    const root = mkdtempSync(join(tmpdir(), 'idocs-'))
+    for (const [name, yaml] of Object.entries(files)) {
+      mkdirSync(join(root, 'diagrams', name), { recursive: true })
+      writeFileSync(join(root, 'diagrams', name, 'diagram.yaml'), yaml)
+    }
+    return root
+  }
+  const capture = async (args: string[]) => {
+    const logs: string[] = []
+    const log = console.log
+    console.log = (m?: unknown) => void logs.push(String(m))
+    try {
+      return { code: await run(args), out: logs.join('\n') }
+    } finally {
+      console.log = log
+    }
+  }
+
+  it('fails a check when a node opens a diagram that is not there, and points at it', async () => {
+    const root = folders({
+      shop: 'title: Shop\nnodes:\n  pay:\n    diagram: paymentz\n',
+      payments: 'title: Payments\nnodes:\n  api: API\n',
+    })
+    const { code, out } = await capture(['check', root])
+    expect(code).toBe(1)
+    expect(out).toContain('diagrams/shop/diagram.yaml:4:5')
+    expect(out).toContain('opens diagram "paymentz"')
+    expect(out).toContain('Did you mean "payments"?')
+  })
+
+  it('passes when every opened diagram exists, and list says what opens what', async () => {
+    const root = folders({
+      shop: 'title: Shop\nnodes:\n  pay:\n    diagram: payments\n',
+      payments: 'title: Payments\nnodes:\n  api: API\n',
+    })
+    expect((await capture(['check', root])).code).toBe(0)
+    const { out } = await capture(['list', root])
+    expect(out).toContain('opens:     pay → payments')
+    const json = await capture(['list', root, '--json'])
+    expect(JSON.parse(json.out).shop.opens).toEqual([{ node: 'pay', diagram: 'payments' }])
+  })
+})

@@ -8,6 +8,7 @@ const KINDS: Record<SuggestionKind, vscode.CompletionItemKind> = {
   node: vscode.CompletionItemKind.Class,
   group: vscode.CompletionItemKind.Module,
   view: vscode.CompletionItemKind.Interface,
+  diagram: vscode.CompletionItemKind.Folder,
   icon: vscode.CompletionItemKind.Color,
   keyword: vscode.CompletionItemKind.Keyword,
   file: vscode.CompletionItemKind.File,

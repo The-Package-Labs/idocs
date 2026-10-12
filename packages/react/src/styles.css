@@ -1442,3 +1442,287 @@
 .idocs-slink.is-future {
   opacity: 0.35;
 }
+
+/* ---------- nested diagrams ---------- */
+
+/* Each level of a trail is one of these. The ones the reader has opened something from stay
+   mounted, hidden, so they come back exactly as they were. */
+.idocs-level {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.idocs-level[hidden] {
+  display: none;
+}
+.idocs:fullscreen .idocs-level:not([hidden]) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* Zoom into the opened card, and back out of it. The origin is set from the card's position. */
+.idocs-level.is-entering,
+.idocs-level.is-returning {
+  transform-origin: var(--idocs-dive-x, 50%) var(--idocs-dive-y, 40%);
+}
+.idocs-level.is-entering {
+  animation: idocs-dive-in 0.34s cubic-bezier(0.2, 0.75, 0.25, 1);
+}
+.idocs-level.is-returning {
+  animation: idocs-dive-out 0.34s cubic-bezier(0.2, 0.75, 0.25, 1);
+}
+@keyframes idocs-dive-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+@keyframes idocs-dive-out {
+  from {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+/* A card that holds a diagram looks like a small stack, with a strip that says what it does. */
+.idocs-node.has-inside {
+  --idocs-stack: 4px 4px 0 -1px var(--idocs-surface), 4px 4px 0 0 var(--idocs-line);
+  box-shadow: var(--idocs-stack), var(--idocs-shadow);
+}
+.idocs-node.has-inside[class*="fam-"] {
+  box-shadow:
+    inset 0 3px 0 var(--fam),
+    var(--idocs-stack),
+    var(--idocs-shadow);
+}
+.idocs-node.has-inside.is-selected {
+  box-shadow:
+    0 0 0 2.5px var(--idocs-accent),
+    var(--idocs-stack),
+    var(--idocs-shadow);
+}
+.idocs-measure .idocs-node.has-inside {
+  box-shadow: none;
+}
+.idocs-node-inside {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* Bleed to the card's edges: the card pads 8px 10px 9px. */
+  margin: 4px -10px -9px;
+  padding: 6px 10px 7px;
+  border-top: 1px solid color-mix(in srgb, var(--idocs-accent) 28%, var(--idocs-line));
+  border-radius: 0 0 6.5px 6.5px;
+  background: color-mix(in srgb, var(--idocs-accent) 7%, transparent);
+  color: var(--idocs-accent);
+  font: 600 11px / 1.2 var(--idocs-sans);
+  letter-spacing: 0.01em;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.idocs-node-inside svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+.idocs-node-inside-go {
+  margin-left: auto;
+  font-size: 15px;
+  line-height: 1;
+  transition: transform 0.15s;
+}
+.idocs-node-inside:hover {
+  background: var(--idocs-accent);
+  color: var(--idocs-surface);
+}
+.idocs-node-inside:hover .idocs-node-inside-go {
+  transform: translateX(2px);
+}
+
+/* After coming back, the card that was opened pulses once so the eye finds its place. */
+.idocs-node.is-origin {
+  animation: idocs-origin 1.6s ease-out;
+}
+@keyframes idocs-origin {
+  0%,
+  35% {
+    outline: 3px solid var(--idocs-accent);
+    outline-offset: 3px;
+  }
+  100% {
+    outline: 3px solid transparent;
+    outline-offset: 9px;
+  }
+}
+
+/* The same action in the drawer: the way in for keyboards and screen readers. */
+.idocs-open {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--idocs-accent) 40%, var(--idocs-line));
+  border-radius: 10px;
+  background: var(--idocs-accent-soft);
+  color: var(--idocs-ink);
+  text-align: left;
+  cursor: pointer;
+}
+.idocs-open:hover {
+  border-color: var(--idocs-accent);
+}
+.idocs-open-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--idocs-accent);
+  color: var(--idocs-surface);
+}
+.idocs-open-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.idocs-open-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.idocs-open-text b {
+  font-size: 13.5px;
+}
+.idocs-open-text span {
+  font-size: 12px;
+  color: var(--idocs-muted);
+}
+.idocs-open-go {
+  font-size: 20px;
+  line-height: 1;
+  color: var(--idocs-accent);
+}
+
+/* The way back: shown only below the first level. */
+.idocs-trail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 6px 8px;
+  background: var(--idocs-surface);
+  border: 1px solid var(--idocs-line);
+  border-radius: 10px;
+}
+.idocs-trail-back {
+  appearance: none;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 30px;
+  padding: 0 12px 0 7px;
+  border: 1px solid var(--idocs-line);
+  border-radius: 8px;
+  background: var(--idocs-surface-2);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.idocs-trail-back:hover {
+  border-color: var(--idocs-accent);
+  color: var(--idocs-accent);
+}
+.idocs-trail-back:focus-visible,
+.idocs-crumb:focus-visible,
+.idocs-open:focus-visible {
+  outline: 2px solid var(--idocs-accent);
+  outline-offset: 2px;
+}
+.idocs-trail-back svg {
+  width: 15px;
+  height: 15px;
+}
+.idocs-trail-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 2px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.idocs-trail-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.idocs-crumb {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  max-width: 260px;
+  padding: 3px 9px 3px 5px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  font-size: 13px;
+  line-height: 1.3;
+}
+.idocs-crumb:not(:has(.idocs-icon)) {
+  padding-left: 9px;
+}
+.idocs-crumb.is-link {
+  color: var(--idocs-muted);
+  cursor: pointer;
+}
+.idocs-crumb.is-link:hover {
+  background: var(--idocs-surface-2);
+  color: var(--idocs-ink);
+}
+.idocs-crumb .idocs-icon {
+  --fam: var(--idocs-muted);
+  --fam-bg: var(--idocs-surface-2);
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+}
+.idocs-crumb .idocs-icon svg {
+  width: 13px;
+  height: 13px;
+}
+.idocs-crumb-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.idocs-trail-list li.is-here .idocs-crumb {
+  background: var(--idocs-accent-soft);
+  color: var(--idocs-ink);
+  font-weight: 600;
+}
+.idocs-trail-sep {
+  color: var(--idocs-muted);
+  font-size: 15px;
+  padding: 0 1px;
+}
+@media (max-width: 520px) {
+  .idocs-trail-back span {
+    display: none;
+  }
+  .idocs-trail-back {
+    padding: 0 7px;
+  }
+  .idocs-crumb {
+    max-width: 130px;
+  }
+}

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
 import { statusCommand, statusText, statusTooltip, summarize } from '../model/summary'
-import type { DiagramService } from './service'
+import { type DiagramService, diagnosticsOf } from './service'
 
 export interface StatusSnapshot {
   visible: boolean
@@ -43,7 +43,7 @@ export class StatusBar implements vscode.Disposable {
       this.snapshot = { visible: false }
       return
     }
-    const summary = summarize(state.name, state.lastGood, state.outcome.diagnostics)
+    const summary = summarize(state.name, state.lastGood, diagnosticsOf(state))
     this.item.text = statusText(summary)
     this.item.tooltip = statusTooltip(summary)
     this.item.command = statusCommand(summary)

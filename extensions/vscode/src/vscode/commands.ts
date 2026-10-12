@@ -4,7 +4,7 @@ import { iconImage } from '../language/hover'
 import { isInside } from '../model/paths'
 import { NAME_PATTERN, newDiagramFiles } from '../model/scaffold'
 import type { PreviewManager } from './preview'
-import type { DiagramService } from './service'
+import { type DiagramService, diagnosticsOf } from './service'
 
 export function registerCommands(
   service: DiagramService,
@@ -172,7 +172,7 @@ async function checkAll(service: DiagramService): Promise<void> {
   let warnings = 0
   const folders = service.folders
   for (const folder of folders) {
-    for (const d of service.state(folder)?.outcome.diagnostics ?? []) {
+    for (const d of diagnosticsOf(service.state(folder)!)) {
       if (d.severity === 'error') errors++
       else warnings++
     }

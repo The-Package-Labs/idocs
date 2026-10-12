@@ -51,6 +51,21 @@ Everything here works on every diagram without any setup. Try it on this one.
 
 Every box can be reached with <kbd>Tab</kbd>, and has an accessible name that includes its title and subtitle.
 
+## Nested diagrams
+
+A box with a **Look inside** strip holds a whole diagram. See [nested diagrams](../../format/nested-diagrams/).
+
+<dl class="keys">
+  <dt>The strip on the box, or <strong>Look inside</strong> in its drawer</dt>
+  <dd>Opens the inner diagram in place, with its own views, scenarios and player. The strip is for the pointer; the drawer's button is the way in for the keyboard and for screen readers.</dd>
+  <dt>Back, or <kbd>Esc</kbd></dt>
+  <dd>Goes up one level. <kbd>Esc</kbd> closes the drawer first when it is open, and does nothing while focus is in something else on the page.</dd>
+  <dt>A name in the trail</dt>
+  <dd>Goes straight to that level and closes the ones below it.</dd>
+</dl>
+
+The level you leave is kept exactly as it was: its view, scenario, step and open drawer. Whatever was playing pauses. The box you came out of pulses once.
+
 ## Views and scenarios
 
 <dl class="keys">
@@ -79,11 +94,12 @@ Every box can be reached with <kbd>Tab</kbd>, and has an accessible name that in
 
 ## Links and the address bar
 
-The address follows the scenario and step as `#<diagram>=<scenario>.<step>`, so a link opens exactly where it was copied. See [playback](../../scenarios/playback/).
+The address follows the scenario and step as `#<diagram>=<scenario>.<step>`, and the boxes opened below a diagram as `#<diagram>~=<node>/<node>`, so a link opens exactly where it was copied. See [playback](../../scenarios/playback/) and [nested diagrams](../../format/nested-diagrams/#deep-links).
 
 ## Accessibility
 
 - Boxes are focusable buttons, and the drawer takes focus when it opens.
+- Opening a nested diagram moves focus to its **Back** button, and coming back returns it to the box that was opened. A box that holds a diagram says so in its accessible name.
 - Controls have labels, and the player is a labelled group.
 - Scenarios start paused for readers who ask for reduced motion. They can still step and scrub.
 - Colour is never the only signal: planned items are dashed and tagged, lookups and errors have their own line styles in the sequence view.

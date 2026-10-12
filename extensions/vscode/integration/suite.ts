@@ -196,6 +196,82 @@ test('completes keys, kinds and icon names', async () => {
   await revert()
 })
 
+test('completes the other diagrams after diagram:, and not the one being edited', async () => {
+  const { doc, editor } = await open('diagrams', 'other', 'diagram.yaml')
+  try {
+    const node = find(doc, 'two: Two')
+    await editor.edit((e) =>
+      e.replace(new vscode.Range(node, node.translate(0, 8)), 'two:\n    diagram: '),
+    )
+    const at = find(doc, 'diagram: ', undefined, 'diagram: '.length)
+    // VS Code adds the words of the file to whatever the provider offers.
+    const found = await completions(doc.uri, at)
+    for (const name of ['broken', 'docs', 'shop']) assert.ok(found.includes(name), found.join(','))
+    assert.ok(!found.includes('other'), 'a diagram cannot be inside itself')
+  } finally {
+    await revert()
+  }
+})
+
+// -- Nested diagrams ----------------------------------------------------------------------------
+
+test('reports a node that opens a diagram that is not there, and offers the nearest', async () => {
+  const { doc, editor } = await open('diagrams', 'other', 'diagram.yaml')
+  try {
+    const at = find(doc, 'two: Two')
+    await editor.edit((e) =>
+      e.replace(new vscode.Range(at, at.translate(0, 8)), 'two:\n    diagram: shpo'),
+    )
+    const found = await until('the missing diagram', () =>
+      diagnosticsOf('diagrams', 'other', 'diagram.yaml').find((d) => d.message.includes('"shpo"')),
+    )
+    assert.equal(found.severity, vscode.DiagnosticSeverity.Error)
+    assert.match(found.message, /does not exist/)
+    assert.match(found.message, /Did you mean "shop"\?/)
+    assert.ok(doc.lineAt(found.range.start.line).text.includes('diagram:'))
+  } finally {
+    await revert()
+  }
+  await until(
+    'the problem to clear',
+    () => diagnosticsOf('diagrams', 'other', 'diagram.yaml').length === 0,
+  )
+})
+
+test('rechecks a diagram when one it opens changes, even in another file', async () => {
+  const { doc, editor } = await open('diagrams', 'other', 'diagram.yaml')
+  try {
+    const at = find(doc, 'two: Two')
+    await editor.edit((e) =>
+      e.replace(
+        new vscode.Range(at, at.translate(0, 8)),
+        'two:\n    diagram: { name: shop, view: nope }',
+      ),
+    )
+    await until('the missing view', () =>
+      diagnosticsOf('diagrams', 'other', 'diagram.yaml').find((d) => d.message.includes('"nope"')),
+    )
+    // The view appears in the other diagram, unsaved: the problem here goes away without
+    // touching this file.
+    const shop = await open('diagrams', 'shop', 'diagram.yaml')
+    try {
+      await append(shop.editor, '\nviews:\n  nope: {}')
+      await until(
+        'the problem to clear in the diagram that opens it',
+        () => diagnosticsOf('diagrams', 'other', 'diagram.yaml').length === 0,
+      )
+    } finally {
+      await revert()
+    }
+    await until('the problem to come back', () =>
+      diagnosticsOf('diagrams', 'other', 'diagram.yaml').find((d) => d.message.includes('"nope"')),
+    )
+  } finally {
+    await open('diagrams', 'other', 'diagram.yaml')
+    await revert()
+  }
+})
+
 // -- Reading ------------------------------------------------------------------------------------
 
 test('describes a node on hover', async () => {

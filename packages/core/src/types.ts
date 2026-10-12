@@ -25,6 +25,13 @@ export interface NodeLink {
   url: string
 }
 
+/** Another diagram that shows the inside of a node. Resolved by name against the project's diagrams. */
+export interface NodeDiagram {
+  name: string
+  view?: string
+  scenario?: string
+}
+
 export interface CompiledNode {
   id: string
   title: string
@@ -43,6 +50,8 @@ export interface CompiledNode {
   links: NodeLink[]
   refs: string[]
   tags: string[]
+  /** Opens one level deeper: the diagram that describes this node's inside. */
+  diagram?: NodeDiagram
 }
 
 export interface CompiledGroup {

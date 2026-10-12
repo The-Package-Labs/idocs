@@ -97,6 +97,7 @@ export default defineConfig({
             { slug: 'format/groups' },
             { slug: 'format/edges' },
             { slug: 'format/views' },
+            { slug: 'format/nested-diagrams' },
             { slug: 'format/kinds' },
             { slug: 'format/node-docs' },
           ],

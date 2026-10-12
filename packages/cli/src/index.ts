@@ -140,6 +140,9 @@ function summarise(diagrams: ReturnType<typeof loadProject>['diagrams']) {
         edges: Object.keys(d.edges).length,
         views: d.views.map((v) => v.id),
         scenarios: d.scenarios.map((s) => ({ id: s.id, view: s.view, steps: s.steps.length })),
+        opens: Object.values(d.nodes)
+          .filter((n) => n.diagram)
+          .map((n) => ({ node: n.id, diagram: n.diagram!.name })),
       },
     ]),
   )
@@ -159,6 +162,8 @@ function list(root: string, flags: Flags): number {
     console.log(
       `  scenarios: ${s.scenarios.map((x) => `${x.id} (${x.steps})`).join(', ') || 'none'}`,
     )
+    if (s.opens.length)
+      console.log(`  opens:     ${s.opens.map((o) => `${o.node} → ${o.diagram}`).join(', ')}`)
   }
   return 0
 }

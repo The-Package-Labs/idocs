@@ -21,6 +21,8 @@ export type ToWebview =
       folder: string
       /** The last diagram that compiled; null while there never was one. */
       diagram: CompiledDiagram | null
+      /** The diagrams its nodes open, by name, as far as they have compiled. */
+      nested: Record<string, CompiledDiagram>
       /** True when `diagram` is older than the text, because the text has errors. */
       stale: boolean
       problems: Problem[]

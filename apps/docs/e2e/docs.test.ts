@@ -59,6 +59,7 @@ describe('documentation navigation', () => {
       'Groups',
       'Edges',
       'Views',
+      'Nested diagrams',
       'Kinds',
       'Node docs',
     ])

@@ -1,6 +1,7 @@
 import {
   buildTimeline,
   type CompiledDiagram,
+  type CompiledNode,
   DEFAULT_NODE_WIDTH,
   type Frame,
   frameAt,
@@ -11,14 +12,16 @@ import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from '
 import { Canvas, type Focus } from './Canvas'
 import { Drawer } from './Drawer'
 import { EdgeLayer, type EdgeState } from './EdgeLayer'
+import { readHashValue, readScenarioHash, trailKey, writeHash } from './hash'
 import { InterfaceTable } from './InterfaceTable'
 import { Legend } from './Legend'
-import { NodeCard, type NodeCardState } from './NodeCard'
+import { NodeCard, type NodeCardState, type NodeInside } from './NodeCard'
 import { Packets } from './Packets'
 import { Player } from './Player'
 import { SequenceView } from './SequenceView'
 import { StepPanel } from './StepPanel'
 import { StoryView } from './StoryView'
+import { type Crumb, Trail } from './Trail'
 import { useLayout } from './useLayout'
 import { usePlayer } from './usePlayer'
 import { cx } from './util'
@@ -44,6 +47,11 @@ export interface DiagramViewProps {
   className?: string
   /** Handle node clicks externally, for example in a visual editor. Replaces the detail drawer. */
   onNodeSelect?: (id: string) => void
+  /**
+   * Diagrams that nodes with a `diagram:` key open one level deeper, by name. `<Diagram>` passes
+   * everything the diagram can reach. A node whose diagram is missing here is shown as any other.
+   */
+  diagrams?: Record<string, CompiledDiagram>
   /** Highlight a node selected by an external editor. */
   selectedNode?: string | null
   /** Called when a node is clicked, in addition to whatever the click already does (opening the drawer). */
@@ -57,8 +65,247 @@ const EMPTY: EdgeState = {}
 const prefersReducedMotion = () =>
   typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
-export function DiagramView({
+/** One step of the way down: the node opened in the level above, and the diagram it held. */
+interface Opened {
+  node: string
+  diagram: string
+}
+
+const MOTION_MS = 450
+const PULSE_MS = 1800
+
+export function DiagramView(props: DiagramViewProps) {
+  const { diagram, diagrams, hash = true, className } = props
+  const rootRef = useRef<HTMLDivElement>(null)
+  const backRef = useRef<HTMLButtonElement>(null)
+  const [opened, setOpened] = useState<Opened[]>([])
+  // Which level is animating in or out, and the node to pulse after coming back to a level.
+  const [moving, setMoving] = useState<{ level: number; dir: 'in' | 'out' } | null>(null)
+  const [returned, setReturned] = useState<{ level: number; node: string } | null>(null)
+  const [fullscreen, setFullscreen] = useState(false)
+  // Where each opened node was on screen, so the animation can zoom into it and back out of it.
+  const origins = useRef<({ x: number; y: number } | undefined)[]>([])
+  // Focus goes back to the node only when the reader got in with the keyboard.
+  const refocus = useRef(false)
+
+  // The diagram shown at each depth, with the node that was opened to get there. A step that no
+  // longer holds (the diagram was edited while it was open) ends the chain.
+  const chain = useMemo(() => {
+    const out: { diagram: CompiledDiagram; via?: CompiledNode }[] = [{ diagram }]
+    for (const o of opened) {
+      const via = out[out.length - 1]!.diagram.nodes[o.node]
+      const next = via?.diagram?.name === o.diagram ? diagrams?.[o.diagram] : undefined
+      if (!via || !next) break
+      out.push({ diagram: next, via })
+    }
+    return out
+  }, [diagram, diagrams, opened])
+  const depth = chain.length - 1
+  const canOpen = !!diagrams && Object.keys(diagrams).length > 0
+
+  const hashKeyAt = (level: number) =>
+    [diagram.name, ...opened.slice(0, level).map((o) => o.diagram)].join('/')
+
+  // The way down is part of the link: #<diagram>~=node/node
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only the first render restores
+  useEffect(() => {
+    const path = hash && diagrams ? readHashValue(trailKey(diagram.name)) : null
+    if (!path) return
+    const steps: Opened[] = []
+    let here = diagram
+    for (const id of path.split('/')) {
+      const ref = here.nodes[id]?.diagram
+      const next = ref && diagrams?.[ref.name]
+      if (!ref || !next) break
+      steps.push({ node: id, diagram: ref.name })
+      here = next
+    }
+    if (steps.length) setOpened(steps)
+  }, [])
+  useEffect(() => {
+    if (!hash) return
+    writeHash(
+      trailKey(diagram.name),
+      opened
+        .slice(0, depth)
+        .map((o) => o.node)
+        .join('/') || null,
+    )
+  }, [hash, diagram.name, opened, depth])
+
+  const aim = (point: { x: number; y: number } | undefined) => {
+    if (!point) return
+    rootRef.current?.style.setProperty('--idocs-dive-x', `${Math.round(point.x)}px`)
+    rootRef.current?.style.setProperty('--idocs-dive-y', `${Math.round(point.y)}px`)
+  }
+
+  const open = (level: number, nodeId: string) => {
+    const ref = chain[level]?.diagram.nodes[nodeId]?.diagram
+    if (!ref || !diagrams?.[ref.name]) return
+    const levelEl = rootRef.current?.querySelector<HTMLElement>(`[data-level="${level}"]`)
+    const card = levelEl?.querySelector<HTMLElement>(`[data-node="${nodeId}"]`)
+    if (levelEl && card) {
+      const l = levelEl.getBoundingClientRect()
+      const c = card.getBoundingClientRect()
+      origins.current[level] = { x: c.left + c.width / 2 - l.left, y: c.top + c.height / 2 - l.top }
+    }
+    aim(origins.current[level])
+    refocus.current = !!document.activeElement?.matches?.(':focus-visible')
+    setOpened((prev) => [...prev.slice(0, level), { node: nodeId, diagram: ref.name }])
+    setReturned(null)
+    setMoving({ level: level + 1, dir: 'in' })
+  }
+
+  /** Land on `level`, closing every level below it. */
+  const goTo = (level: number) => {
+    if (level < 0 || level >= depth) return
+    for (let l = level + 1; l <= depth; l++) writeHash(hashKeyAt(l), null)
+    aim(origins.current[level])
+    refocus.current = !!document.activeElement?.matches?.(':focus-visible')
+    const via = opened[level]
+    setOpened((prev) => prev.slice(0, level))
+    setReturned(via ? { level, node: via.node } : null)
+    setMoving({ level, dir: 'out' })
+  }
+  const back = () => goTo(depth - 1)
+
+  useEffect(() => {
+    if (!moving) return
+    const t = window.setTimeout(() => setMoving(null), MOTION_MS)
+    return () => window.clearTimeout(t)
+  }, [moving])
+  useEffect(() => {
+    if (!returned) return
+    const t = window.setTimeout(() => setReturned(null), PULSE_MS)
+    return () => window.clearTimeout(t)
+  }, [returned])
+
+  // Into a level: the reader lands on the way back, which also scopes Escape to this widget.
+  useEffect(() => {
+    if (depth === 0) return
+    backRef.current?.focus({ preventScroll: true })
+    const top = rootRef.current?.getBoundingClientRect().top ?? 0
+    if (top < 0) rootRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })
+  }, [depth])
+  // Back out: a keyboard reader finds themselves on the card they opened.
+  useEffect(() => {
+    if (!returned || !refocus.current) return
+    refocus.current = false
+    rootRef.current
+      ?.querySelector<HTMLElement>(
+        `[data-level="${returned.level}"] [data-node="${returned.node}"]`,
+      )
+      ?.focus({ preventScroll: true })
+  }, [returned])
+
+  useEffect(() => {
+    const onChange = () => setFullscreen(document.fullscreenElement === rootRef.current)
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
+  const toggleFullscreen = () => {
+    // Refused, for example, in an iframe that was not given the permission; nothing to report.
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
+    else rootRef.current?.requestFullscreen?.()?.catch(() => {})
+  }
+  const canFullscreen = typeof document !== 'undefined' && document.fullscreenEnabled !== false
+
+  const crumbs: Crumb[] = [
+    { key: diagram.name, label: diagram.title, title: 'Back to the top' },
+    ...chain.slice(1).map((c) => ({
+      key: c.diagram.name,
+      label: c.via!.title,
+      title: c.diagram.title,
+      icon: c.via!.icon,
+    })),
+  ]
+
+  return (
+    <div ref={rootRef} className={cx('idocs', className)}>
+      {depth > 0 && <Trail ref={backRef} crumbs={crumbs} onJump={goTo} onBack={back} />}
+      {chain.map(({ diagram: d, via: node }, level) => {
+        const top = level === depth
+        const first = level === 0
+        const via = node?.diagram
+        return (
+          <div
+            key={d.name}
+            className={cx(
+              'idocs-level',
+              moving?.level === level && (moving.dir === 'in' ? 'is-entering' : 'is-returning'),
+            )}
+            data-level={level}
+            hidden={!top}
+          >
+            <Level
+              diagram={d}
+              diagrams={diagrams}
+              view={first ? props.view : via?.view}
+              scenario={first ? props.scenario : via?.scenario}
+              mode={first ? props.mode : undefined}
+              maxHeight={props.maxHeight}
+              showTitle={first ? props.showTitle : false}
+              showDescription={first ? props.showDescription : true}
+              autoplay={first ? props.autoplay : false}
+              hash={hash}
+              hashKey={hashKeyAt(level)}
+              active={top}
+              fullscreen={fullscreen}
+              onToggleFullscreen={canFullscreen ? toggleFullscreen : undefined}
+              within={rootRef}
+              onOpen={canOpen ? (id) => open(level, id) : undefined}
+              onBack={top && !first ? back : undefined}
+              origin={top && returned?.level === level ? returned.node : null}
+              onNodeSelect={first ? props.onNodeSelect : undefined}
+              selectedNode={first ? props.selectedNode : undefined}
+              onNodeOpen={first ? props.onNodeOpen : undefined}
+              highlightNode={first ? props.highlightNode : null}
+            />
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+interface LevelProps
+  extends Pick<
+    DiagramViewProps,
+    | 'diagram'
+    | 'diagrams'
+    | 'view'
+    | 'scenario'
+    | 'mode'
+    | 'maxHeight'
+    | 'showTitle'
+    | 'showDescription'
+    | 'autoplay'
+    | 'hash'
+    | 'onNodeSelect'
+    | 'selectedNode'
+    | 'onNodeOpen'
+    | 'highlightNode'
+  > {
+  /** Key of this level's scenario in the URL hash. */
+  hashKey: string
+  /** False while a diagram opened from this one covers it: the player pauses and keys go elsewhere. */
+  active: boolean
+  fullscreen: boolean
+  onToggleFullscreen?: () => void
+  /** The element Escape is scoped to, so a page with other widgets is left alone. */
+  within: React.RefObject<HTMLElement | null>
+  /** Open the diagram held by a node. Absent when nothing can be opened from here. */
+  onOpen?: (nodeId: string) => void
+  /** Present on every level but the first: go up one. */
+  onBack?: () => void
+  /** The node the reader has just come back from. */
+  origin?: string | null
+}
+
+/** One diagram with its views, scenarios, player and drawer. The levels of a trail each get one. */
+function Level({
   diagram,
+  diagrams,
   view: viewProp,
   scenario: scenarioProp,
   mode: modeProp,
@@ -67,14 +314,20 @@ export function DiagramView({
   showDescription = false,
   autoplay: autoplayProp = false,
   hash = true,
-  className,
+  hashKey,
+  active,
+  fullscreen,
+  onToggleFullscreen,
+  within,
+  onOpen,
+  onBack,
+  origin,
   onNodeSelect,
   selectedNode,
   onNodeOpen,
   highlightNode,
-}: DiagramViewProps) {
+}: LevelProps) {
   const uid = useId().replace(/:/g, '')
-  const rootRef = useRef<HTMLDivElement>(null)
   const paths = useRef(new Map<string, SVGPathElement>()).current
   const register = useCallback(
     (id: string, el: SVGPathElement | null) => {
@@ -84,7 +337,12 @@ export function DiagramView({
     [paths],
   )
 
-  const [viewId, setViewId] = useState(viewProp ?? diagram.views[0]!.id)
+  const [viewId, setViewId] = useState(
+    () =>
+      viewProp ??
+      diagram.scenarios.find((s) => s.id === scenarioProp)?.view ??
+      diagram.views[0]!.id,
+  )
   const view = diagram.views.find((v) => v.id === viewId) ?? diagram.views[0]!
   const scenarios = useMemo(
     () => diagram.scenarios.filter((s) => s.view === view.id),
@@ -99,11 +357,10 @@ export function DiagramView({
   const [internalSelected, setSelected] = useState<string | null>(null)
   const selected = selectedNode === undefined ? internalSelected : selectedNode
   const [hidePlanned, setHidePlanned] = useState(false)
-  const [fullscreen, setFullscreen] = useState(false)
   // null means automatic: follow the action when the diagram is too big to read at once.
   const [follow, setFollow] = useState<boolean | null>(null)
 
-  const { layout, error, measureRef } = useLayout(diagram, view.id)
+  const { layout, error, measureRef } = useLayout(diagram, view.id, active)
 
   const timeline = useMemo(() => {
     if (!layout || !scenario) return null
@@ -161,7 +418,7 @@ export function DiagramView({
   // Deep links: #<diagram>=<scenario>[.<step>]
   useEffect(() => {
     if (!hash) return
-    const hit = readHash(diagram.name)
+    const hit = readScenarioHash(hashKey)
     if (!hit) return
     const sc = diagram.scenarios.find((s) => s.id === hit.scenario)
     if (!sc) return
@@ -169,27 +426,35 @@ export function DiagramView({
     setScenarioId(sc.id)
     if (sc.mode) setMode(sc.mode)
     if (hit.step) pendingStep.current = hit.step - 1
-  }, [diagram, hash])
+  }, [diagram, hash, hashKey])
 
   useEffect(() => {
     if (!hash || player.playing) return
     writeHash(
-      diagram.name,
+      hashKey,
       scenarioId ? `${scenarioId}${stepIndex >= 0 ? `.${stepIndex + 1}` : ''}` : null,
     )
-  }, [hash, diagram.name, scenarioId, stepIndex, player.playing])
+  }, [hash, hashKey, scenarioId, stepIndex, player.playing])
 
+  // Whatever was playing waits where it is until the reader comes back.
+  const pausePlayer = player.pause
   useEffect(() => {
-    const onChange = () => setFullscreen(document.fullscreenElement === rootRef.current)
-    document.addEventListener('fullscreenchange', onChange)
-    return () => document.removeEventListener('fullscreenchange', onChange)
-  }, [])
-  const toggleFullscreen = () => {
-    // Refused, for example, in an iframe that was not given the permission; nothing to report.
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
-    else rootRef.current?.requestFullscreen?.()?.catch(() => {})
-  }
-  const canFullscreen = typeof document !== 'undefined' && document.fullscreenEnabled !== false
+    if (!active) pausePlayer()
+  }, [active, pausePlayer])
+
+  // Escape goes up a level, unless the drawer is open (it closes first) or focus is elsewhere.
+  useEffect(() => {
+    if (!active || !onBack || selected) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return
+      const at = document.activeElement
+      if (at && at !== document.body && !within.current?.contains(at)) return
+      e.preventDefault()
+      onBack()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [active, onBack, selected, within])
 
   const onHoverNode = useCallback((id: string | null) => setHover(id ? { node: id } : {}), [])
   const onHoverEdge = useCallback((id: string | null) => setHover(id ? { edge: id } : {}), [])
@@ -203,6 +468,23 @@ export function DiagramView({
   )
   const select = useCallback((id: string) => setSelected(id), [])
   const closeDrawer = useCallback(() => setSelected(null), [])
+
+  // Nodes that hold a diagram the page can reach, with what to say about it before it is opened.
+  const canOpen = !!onOpen
+  const insideOf = useMemo(() => {
+    const out: Record<string, NodeInside> = {}
+    if (!canOpen || !diagrams) return out
+    for (const id of view.nodeIds) {
+      const target = diagrams[diagram.nodes[id]!.diagram?.name ?? '']
+      if (target)
+        out[id] = {
+          title: target.title,
+          nodes: Object.keys(target.nodes).length,
+          scenarios: target.scenarios.length,
+        }
+    }
+    return out
+  }, [diagram, diagrams, view, canOpen])
 
   // A highlight from outside counts while it names a node of this view and no scenario is under
   // way; otherwise it would dim a diagram it cannot point into, or fight a paused scenario.
@@ -251,10 +533,11 @@ export function DiagramView({
         dim: focus ? !focus.nodes.has(id) : scenarioActive ? !visited.has(id) : false,
         visited: scenarioActive && visited.has(id),
         hidden: hidePlanned && diagram.nodes[id]!.status === 'planned',
+        origin: origin === id,
       }
     }
     return out
-  }, [view, focus, selected, outside, scenarioActive, visitedKey, hidePlanned, diagram])
+  }, [view, focus, selected, outside, scenarioActive, visitedKey, hidePlanned, diagram, origin])
 
   const edgeStates = useMemo(() => {
     const active = new Set(activeKey ? activeKey.split(',') : [])
@@ -320,7 +603,7 @@ export function DiagramView({
   const presentation = scenario ? mode : 'flow'
 
   return (
-    <div ref={rootRef} className={cx('idocs', className)}>
+    <>
       {showTitle && <h3 style={{ margin: 0 }}>{diagram.title}</h3>}
       {(showTitle || showDescription) && diagram.descriptionHtml && (
         <div
@@ -404,7 +687,7 @@ export function DiagramView({
           layout={layout}
           maxHeight={maxHeight}
           fullscreen={fullscreen}
-          onToggleFullscreen={canFullscreen ? toggleFullscreen : undefined}
+          onToggleFullscreen={onToggleFullscreen}
           onBackgroundClick={closeDrawer}
           focus={camera}
           onUserMove={stopFollowing}
@@ -439,12 +722,15 @@ export function DiagramView({
             </>
           }
           overlay={
+            active &&
             selected &&
             !onNodeSelect && (
               <Drawer
                 diagram={diagram}
                 view={view}
                 nodeId={selected}
+                inside={insideOf[selected]}
+                onOpen={onOpen}
                 onClose={closeDrawer}
                 onSelect={select}
               />
@@ -460,9 +746,11 @@ export function DiagramView({
             stateOf={stateOf}
             edgeStates={edgeStates}
             register={register}
+            insideOf={insideOf}
             onHoverNode={onHoverNode}
             onHoverEdge={onHoverEdge}
             onSelect={onSelect}
+            onOpen={onOpen}
           />
           {frame && scenarioActive && <Packets frame={frame} layout={layout} paths={paths} />}
         </Canvas>
@@ -502,10 +790,18 @@ export function DiagramView({
       <div className="idocs-measure" ref={measureRef} aria-hidden="true">
         {view.nodeIds.map((id) => {
           const n = diagram.nodes[id]!
-          return <NodeCard key={id} node={n} measure style={{ width: n.w ?? DEFAULT_NODE_WIDTH }} />
+          return (
+            <NodeCard
+              key={id}
+              node={n}
+              measure
+              inside={insideOf[id]}
+              style={{ width: n.w ?? DEFAULT_NODE_WIDTH }}
+            />
+          )
         })}
       </div>
-    </div>
+    </>
   )
 }
 
@@ -518,9 +814,11 @@ interface WorldProps {
   edgeStates: Record<string, EdgeState>
   stateOf: (id: string) => EdgeState
   register: (id: string, el: SVGPathElement | null) => void
+  insideOf: Record<string, NodeInside>
   onHoverNode: (id: string | null) => void
   onHoverEdge: (id: string | null) => void
   onSelect: (id: string) => void
+  onOpen?: (id: string) => void
 }
 
 /** Zones, edges and nodes. Memoised so the per-frame player updates do not touch it. */
@@ -532,9 +830,11 @@ const World = memo(function World({
   nodeFlags,
   stateOf,
   register,
+  insideOf,
   onHoverNode,
   onHoverEdge,
   onSelect,
+  onOpen,
 }: WorldProps) {
   const noDim = useCallback(() => false, [])
   return (
@@ -558,7 +858,9 @@ const World = memo(function World({
             node={diagram.nodes[id]!}
             style={{ left: r.x, top: r.y, width: r.w, height: r.h }}
             state={nodeFlags[id]}
+            inside={insideOf[id]}
             onSelect={onSelect}
+            onOpen={onOpen}
             onHover={onHoverNode}
           />
         )
@@ -566,27 +868,3 @@ const World = memo(function World({
     </>
   )
 })
-
-function readHash(name: string): { scenario: string; step?: number } | null {
-  if (typeof location === 'undefined') return null
-  for (const part of location.hash.slice(1).split('&')) {
-    const [key, value] = part.split('=')
-    if (key === name && value) {
-      const [scenario, step] = value.split('.')
-      return { scenario: scenario!, step: step ? Number(step) || undefined : undefined }
-    }
-  }
-  return null
-}
-
-function writeHash(name: string, value: string | null) {
-  if (typeof location === 'undefined') return
-  const parts = location.hash
-    .slice(1)
-    .split('&')
-    .filter((p) => p && !p.startsWith(`${name}=`))
-  if (value) parts.push(`${name}=${value}`)
-  const hash = parts.length ? `#${parts.join('&')}` : ''
-  if (hash !== location.hash)
-    history.replaceState(null, '', `${location.pathname}${location.search}${hash}`)
-}

@@ -3,6 +3,7 @@
 export * from './defaults'
 export * from './geometry'
 export * from './layout'
+export * from './nesting'
 export * from './route'
 export * from './story'
 export * from './svg'

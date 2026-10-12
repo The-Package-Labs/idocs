@@ -36,6 +36,7 @@ Top-level keys: `title` (required), `description`, `nodes` (required), `groups`,
 | `links` | `- { label: Runbook, url: https://... }` |
 | `refs` | Source files or URLs the node is based on. `idocs check` warns when a path no longer exists. `src/api.ts`, `src/api.ts:40` and `src/api.ts#L40` all work. |
 | `tags` | Free-form tags. |
+| `diagram` | Name of another diagram (its folder under `diagrams/`) that shows the inside of this node: `diagram: payments`. The card gets a "Look inside" strip that opens it one level deeper, with a trail and Back button. Long form: `diagram: { name: payments, view: refunds, scenario: pay }`. See "Nested diagrams" below. |
 
 Node kinds: `client user ui external service gateway worker container function database cache storage queue agent network vm auth monitor`. Add or override your own with a top-level `kinds:` map: `ledger: { icon: lucide:book-open, family: amber }`.
 
@@ -104,6 +105,25 @@ views:
 ```
 
 Edges whose two ends are both in the view are included. A scenario plays on the first view unless it sets `view:`; every node it uses must be in that view.
+
+## Nested diagrams
+
+A node can hold a whole diagram of its own. Write the inside as an ordinary diagram in its own folder, then point the node at it:
+
+```yaml
+# diagrams/shop/diagram.yaml
+nodes:
+  orders: { kind: service, title: Order service, diagram: orders }
+  payments: { kind: service, title: Payments, diagram: { name: payments, scenario: pay } }
+```
+
+Readers open the card, land in that diagram with its own views, scenarios and player, and use **Back**, the trail above it, or Esc to return to the parent exactly as they left it. Diagrams can nest as deep as the system does.
+
+- Nest when the inside of a node is a story of its own. If it only needs a paragraph, use a node doc (`nodes/<id>.md`); if it only needs a different slice of the same model, use a view.
+- Several nodes may open the same diagram. A diagram cannot be inside itself: a node that opens its own diagram, or diagrams that open each other in a circle, are errors.
+- `idocs check` verifies the name, `view` and `scenario` across diagrams, at the line that wrote them. `idocs list` shows what opens what.
+- Nothing else is needed on the page: `<Diagram name="shop" />` carries the diagrams it can reach.
+- Links: `#shop~=orders/stock` opens `orders` then `stock`; each level's scenario is `#shop/orders=create.2`.
 
 ## Pages
 

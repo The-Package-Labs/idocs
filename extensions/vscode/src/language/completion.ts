@@ -18,6 +18,7 @@ export type SuggestionKind =
   | 'node'
   | 'group'
   | 'view'
+  | 'diagram'
   | 'icon'
   | 'keyword'
   | 'file'
@@ -50,6 +51,8 @@ export interface ProjectIds {
   customEdgeKinds: string[]
   /** Markdown files in `nodes/`, relative to the diagram folder. */
   docs: string[]
+  /** The other diagrams of the project, which a node can open. */
+  diagrams: Entity[]
 }
 
 export interface IconCatalog {
@@ -174,6 +177,8 @@ function values(
       return icons(cursor.typed, req.icons)
     case 'doc':
       return ids.docs.map((d) => ({ label: d, kind: 'file' }))
+    case 'diagram':
+      return ids.diagrams.map((d) => ({ label: d.id, kind: 'diagram', detail: d.detail }))
     case 'status':
       return words(prop?.values ?? statuses, 'status')
   }

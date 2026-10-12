@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=../diagram.schema.json
+title: Order service
+description: |
+  Inside the order service. The **Stock** card goes one level deeper still.
+
+nodes:
+  api: { kind: service, icon: dotnet, title: Orders API, sub: ":4003" }
+  rules: { kind: function, title: Order rules, sub: validate · price }
+  stock:
+    kind: service
+    icon: go
+    title: Stock
+    sub: holds items for an order
+    diagram: nest-stock
+  db: { kind: database, icon: postgresql, title: Orders database }
+  outbox: { kind: queue, icon: rabbitmq, title: Order events, sub: order.created }
+
+edges:
+  - api -> rules: validate
+  - api -> stock: reserve
+  - api -> db: { kind: data, label: INSERT }
+  - api -> outbox: { kind: queue, label: order.created }
+
+views:
+  overview: { direction: RIGHT }
+
+scenarios:
+  create:
+    title: Create an order
+    steps:
+      - api -> rules: validate cart
+      - at rules:
+          label: price and tax
+          note: Prices are recomputed on the server, whatever the browser sent.
+      - api -> stock: reserve items
+      - api -> db: { label: INSERT order, kind: lookup }
+      - api -> outbox: { label: order.created, kind: event }

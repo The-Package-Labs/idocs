@@ -312,6 +312,39 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "diagram": {
+                "description": "Another diagram (its folder name) that shows the inside of this node. The card gets a \"Look inside\" button that opens it one level deeper, with a way back.",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Folder name of the diagram, under diagrams/."
+                      },
+                      "view": {
+                        "description": "View to open first. Defaults to the scenario view, then the first.",
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_.-]+$"
+                      },
+                      "scenario": {
+                        "description": "Scenario to select when the diagram opens.",
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_.-]+$"
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
               }
             },
             "additionalProperties": false

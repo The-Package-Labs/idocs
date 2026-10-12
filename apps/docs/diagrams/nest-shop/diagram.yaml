@@ -1,0 +1,50 @@
+# yaml-language-server: $schema=../diagram.schema.json
+title: Online shop
+description: |
+  The shop at a glance. Cards marked **Look inside** hold a whole diagram of their own:
+  open one, play its scenarios, and use **Back** (or the trail above it) to return here.
+
+nodes:
+  browser: { kind: client, icon: react, title: Shopper browser }
+  gateway: { kind: gateway, icon: nginx, title: API gateway }
+  orders:
+    kind: service
+    icon: dotnet
+    title: Order service
+    sub: creates and tracks orders
+    diagram: nest-orders
+  payments:
+    kind: service
+    icon: nodejs
+    title: Payments
+    sub: opens on its "pay" scenario
+    diagram: { name: payments, scenario: pay }
+  mailer:
+    kind: worker
+    icon: lucide:mail
+    title: Receipt mailer
+
+edges:
+  - browser -> gateway: HTTPS
+  - gateway -> orders: create
+  - orders -> payments: charge
+  - payments -> mailer: { kind: queue, label: paid }
+
+views:
+  overview: { direction: RIGHT }
+
+scenarios:
+  place-order:
+    title: Place an order
+    summary: |
+      The shopper checks out. The order service reserves stock and asks payments to charge the
+      card; **look inside** either one to see what happens there.
+    steps:
+      - browser -> gateway: POST /orders
+      - gateway -> orders: create order
+      - orders -> payments: charge card
+      - at payments:
+          label: card charged
+          note: The payments diagram has the full story, including what happens when a card is declined.
+      - payments -> mailer: { label: payment.succeeded, kind: event }
+      - orders -> browser: 201 Created

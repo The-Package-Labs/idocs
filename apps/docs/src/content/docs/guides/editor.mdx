@@ -48,12 +48,13 @@ Open a diagram and press <kbd>Ctrl</kbd>+<kbd>K</kbd> <kbd>V</kbd> (<kbd>⌘</kb
 - **It follows your cursor.** The node you are editing is outlined in the diagram. Click a node in the diagram and the editor jumps to where it is written.
 - **It follows you** to another diagram when you switch files. The padlock keeps it where it is.
 - **It is the real thing.** Pan, zoom, open a node's details, switch views and play scenarios as packets, a sequence diagram or a swimlane story. It takes your editor's colours and fonts, light or dark.
+- **It looks inside.** A node with a `diagram:` has a **Look inside** strip in the preview too, and the diagrams it opens follow your edits to them. See [nested diagrams](../../format/nested-diagrams/).
 
 ## Writing
 
-**Problems** are the checks `idocs check` runs, shown in the Problems panel as you type: unknown keys with a suggestion, edges to nodes that do not exist, steps with no route, icons that do not resolve, and `refs:` that point at files that have since moved.
+**Problems** are the checks `idocs check` runs, shown in the Problems panel as you type: unknown keys with a suggestion, edges to nodes that do not exist, steps with no route, icons that do not resolve, `refs:` that point at files that have since moved, and nodes that open a diagram that is missing or that leads back to itself.
 
-**Completion** knows where you are. In a node it offers the node's keys with their documentation; after `kind:` it offers the kinds; at the start of an edge or a step it offers your node ids, and after `->` the other end.
+**Completion** knows where you are. In a node it offers the node's keys with their documentation; after `kind:` it offers the kinds; at the start of an edge or a step it offers your node ids, and after `->` the other end; after `diagram:` it offers the other diagrams of the project.
 
 ```yaml
 edges:
