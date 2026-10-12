@@ -1,6 +1,6 @@
 {
   "name": "create-idocs",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Scaffold a docs site with interactive diagrams: npm create idocs@latest my-docs",
   "type": "module",
   "bin": {

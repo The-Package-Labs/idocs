@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 - Nested diagrams. A node with `diagram: <name>` shows a **Look inside** strip in the preview, which opens that diagram in place with a trail back, and the preview follows edits to the diagrams it opens.
 - Problems for nodes that open a diagram that does not exist, or a view or scenario it does not have, or that lead back to themselves, as `idocs check` reports them.
