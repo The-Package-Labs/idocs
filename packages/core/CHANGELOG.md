@@ -8,7 +8,7 @@ Versions up to 0.2.0 were published as `@packagelab/docspp-core`.
 
 - 90f07a0: Nested diagrams. A node can name another diagram (`diagram: payments`, or `diagram: { name, view, scenario }`), and its card gets a **Look inside** strip that opens that diagram one level deeper, with its own views, scenarios and player. A trail above it, a **Back** button and Escape lead back to the parent exactly as it was left, and the way down is part of the shareable link (`#shop~=orders/stock`).
   
-  `idocs check` now also checks across diagrams: a diagram that does not exist, a view or scenario it does not have, and diagrams that open each other in a circle, each at the line that wrote it. `idocs list` shows what opens what. `<Diagram>` sends the page the diagrams it can reach; `DiagramView` takes them as `diagrams`, and core exports `nestedDiagrams` and `linkDiagrams`.
+  `idocs check` now also checks across diagrams: a diagram that does not exist, a view or scenario it does not have, and diagrams that open each other in a circle, each at the line that wrote it. `idocs list` shows what opens what. A compiled diagram carries the diagrams it can open, as `nested`, so `<Diagram>` and `DiagramView` need no extra setup; core exports `attachNested`, `nestedDiagrams` and `linkDiagrams`.
 
 ## 0.3.1
 

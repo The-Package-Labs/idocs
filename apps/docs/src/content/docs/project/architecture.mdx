@@ -15,7 +15,7 @@ This page is for contributors and the curious. You do not need any of it to use 
 <Diagram name="pipeline" scenario="build" maxHeight={560} />
 
 1. **Compile, on the server.** `@the-package-labs/idocs-core/node` reads `diagram.yaml`, expands shorthand, validates it with a Zod schema and resolves icons and Markdown. The result is a `CompiledDiagram`: plain JSON.
-2. **Hand over.** The Astro integration exposes every compiled diagram as `virtual:idocs/diagrams` and fails the build on errors. `<Diagram>` passes one diagram to a React island as props, along with every diagram it can open through a node's `diagram:` key. The checks that span diagrams (a name that does not exist, a circle) run once all of them have compiled, in `linkDiagrams`.
+2. **Hand over.** The Astro integration exposes every compiled diagram as `virtual:idocs/diagrams` and fails the build on errors. `<Diagram>` passes one diagram to a React island as props. The checks that span diagrams (a name that does not exist, a circle) run once all of them have compiled, in `linkDiagrams`, and `attachNested` then puts the diagrams a diagram can open inside it as `nested`, so the island is told nothing else.
 3. **Measure and lay out, in the browser.** The island renders each card offscreen at its fixed width to learn its height, then calls `layoutView`. That runs ELK once per group, bottom up, then arranges the zones and routes the edges ELK cannot see.
 4. **Play.** `buildTimeline(scenario, edgeLengths)` turns a scenario into a timeline. `frameAt(timeline, t)` turns a time into a frame: where each packet is, which nodes are lit. The player is a clock that advances `t`.
 

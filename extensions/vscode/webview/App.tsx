@@ -75,7 +75,7 @@ export function App() {
     )
   }
 
-  const { diagram, nested, problems, stale, name } = state.message
+  const { diagram, problems, stale, name } = state.message
   const errors = problems.filter((p) => p.severity === 'error').length
   // With nothing to draw, the problems are the page.
   const listOpen = showProblems || (!diagram && problems.length > 0)
@@ -99,7 +99,6 @@ export function App() {
           <DiagramView
             key={name}
             diagram={diagram}
-            diagrams={nested}
             hash={false}
             showTitle
             showDescription

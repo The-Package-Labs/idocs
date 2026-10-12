@@ -1,6 +1,7 @@
 // The live preview: one webview panel that shows the diagram of the file you are editing, follows
 // you to other diagrams unless locked, and shows the node your cursor is in.
 import { relative } from 'node:path'
+import type { CompiledDiagram } from '@the-package-labs/idocs-core'
 import * as vscode from 'vscode'
 import { sameProject } from '../model/links'
 import { isInside } from '../model/paths'
@@ -203,8 +204,7 @@ export class PreviewManager implements vscode.Disposable {
       type: 'diagram',
       name: state.name,
       folder: state.folder,
-      diagram: state.lastGood ?? null,
-      nested: this.service.nested(state.folder),
+      diagram: state.lastGood ? { ...state.lastGood, ...this.nestedOf(state) } : null,
       stale: !state.outcome.diagram,
       problems: problems(state),
       locked: this.locked,
@@ -217,6 +217,12 @@ export class PreviewManager implements vscode.Disposable {
     this.posted++
     void this.panel.webview.postMessage(message)
     this.onSelectionSoon()
+  }
+
+  /** `nested` for a diagram that opens others; nothing at all for one that does not, as the loader does. */
+  private nestedOf(state: FolderState): Pick<CompiledDiagram, 'nested'> {
+    const nested = this.service.nested(state.folder)
+    return Object.keys(nested).length ? { nested } : {}
   }
 
   private onCompiled(state: FolderState): void {

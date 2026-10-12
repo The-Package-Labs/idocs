@@ -47,11 +47,6 @@ export interface DiagramViewProps {
   className?: string
   /** Handle node clicks externally, for example in a visual editor. Replaces the detail drawer. */
   onNodeSelect?: (id: string) => void
-  /**
-   * Diagrams that nodes with a `diagram:` key open one level deeper, by name. `<Diagram>` passes
-   * everything the diagram can reach. A node whose diagram is missing here is shown as any other.
-   */
-  diagrams?: Record<string, CompiledDiagram>
   /** Highlight a node selected by an external editor. */
   selectedNode?: string | null
   /** Called when a node is clicked, in addition to whatever the click already does (opening the drawer). */
@@ -75,7 +70,10 @@ const MOTION_MS = 450
 const PULSE_MS = 1800
 
 export function DiagramView(props: DiagramViewProps) {
-  const { diagram, diagrams, hash = true, className } = props
+  const { diagram, hash = true, className } = props
+  // What a node with a `diagram:` key opens travels inside the diagram that holds it. A node
+  // whose diagram is not there is drawn like any other.
+  const diagrams = diagram.nested
   const rootRef = useRef<HTMLDivElement>(null)
   const backRef = useRef<HTMLButtonElement>(null)
   const [opened, setOpened] = useState<Opened[]>([])
@@ -272,7 +270,6 @@ interface LevelProps
   extends Pick<
     DiagramViewProps,
     | 'diagram'
-    | 'diagrams'
     | 'view'
     | 'scenario'
     | 'mode'
@@ -286,6 +283,8 @@ interface LevelProps
     | 'onNodeOpen'
     | 'highlightNode'
   > {
+  /** Everything the first level can open, by name: the same for every level of a trail. */
+  diagrams?: Record<string, CompiledDiagram>
   /** Key of this level's scenario in the URL hash. */
   hashKey: string
   /** False while a diagram opened from this one covers it: the player pauses and keys go elsewhere. */

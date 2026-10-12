@@ -73,14 +73,14 @@ Nest when the inside of a node is a story of its own, with its own nodes and sce
 
 ## Embedding
 
-`<Diagram>` does the work: it sends the page every diagram the first one can reach, and nothing else. A diagram with no `diagram:` keys sends nothing extra.
-
-In your own React app, pass the diagrams yourself:
+There is nothing to set up. When the diagrams of a project are loaded, each diagram that opens others carries them inside itself, as `nested`, so wherever the diagram goes its insides go with it. `<Diagram>` and `<DiagramView>` both read them from the diagram:
 
 ```tsx
-import { nestedDiagrams } from '@the-package-labs/idocs-core'
+import { loadProject } from '@the-package-labs/idocs-core/node'
 
-<DiagramView diagram={diagrams.shop} diagrams={nestedDiagrams(diagrams, 'shop')} />
+const { diagrams } = loadProject(root)
+
+<DiagramView diagram={diagrams.shop} />
 ```
 
-A node whose diagram is not in `diagrams` is drawn like any other node. See [props and options](../../reference/props/).
+A diagram that opens nothing carries nothing extra. A node whose diagram is missing is drawn like any other node. See [props and options](../../reference/props/).

@@ -12,8 +12,7 @@ export interface LinkEntry {
 
 /**
  * Every diagram that `name` can reach by opening nodes, directly or through other diagrams, but
- * not `name` itself. This is what a page has to ship so the reader can look inside without
- * another request.
+ * not `name` itself.
  */
 export function nestedDiagrams(
   all: Record<string, CompiledDiagram>,
@@ -28,6 +27,27 @@ export function nestedDiagrams(
       out[next] = all[next]
       queue.push(next)
     }
+  }
+  return out
+}
+
+/**
+ * Give every diagram that opens others the diagrams it can reach, as `nested`, so wherever a
+ * compiled diagram goes its insides go with it and the viewer is told nothing. Diagrams that open
+ * nothing are returned as they are. Safe to call twice.
+ */
+export function attachNested(
+  all: Record<string, CompiledDiagram>,
+): Record<string, CompiledDiagram> {
+  const flat: Record<string, CompiledDiagram> = {}
+  for (const [name, diagram] of Object.entries(all)) {
+    const { nested: _, ...rest } = diagram
+    flat[name] = rest
+  }
+  const out: Record<string, CompiledDiagram> = {}
+  for (const [name, diagram] of Object.entries(flat)) {
+    const nested = nestedDiagrams(flat, name)
+    out[name] = Object.keys(nested).length ? { ...diagram, nested } : diagram
   }
   return out
 }

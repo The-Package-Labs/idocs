@@ -1,5 +1,4 @@
 ---
-import { nestedDiagrams } from '@the-package-labs/idocs-core'
 import { DiagramView } from '@the-package-labs/idocs-react'
 import '@the-package-labs/idocs-react/styles.css'
 import { diagrams } from 'virtual:idocs/diagrams'
@@ -32,11 +31,8 @@ if (!diagram) {
   )
 }
 
-// Nodes with a `diagram:` key open another diagram in place, so the page carries every diagram
-// this one can reach. Most pages have none and carry nothing extra.
-const nested = nestedDiagrams(diagrams, name)
 ---
 
 <div class="idocs-bleed not-content">
-  <DiagramView client:visible diagram={diagram} diagrams={nested} {...props} />
+  <DiagramView client:visible diagram={diagram} {...props} />
 </div>

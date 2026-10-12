@@ -171,6 +171,12 @@ export interface CompiledDiagram {
   edgeKinds: Record<string, EdgeKindDef>
   views: CompiledView[]
   scenarios: CompiledScenario[]
+  /**
+   * The diagrams its nodes open, by name, and the ones those open in turn. Added once every
+   * diagram of the project has compiled (`attachNested`), so a diagram is all a viewer needs. The
+   * entries themselves carry no `nested`.
+   */
+  nested?: Record<string, CompiledDiagram>
 }
 
 export interface Pt {

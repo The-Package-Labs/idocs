@@ -122,7 +122,7 @@ Readers open the card, land in that diagram with its own views, scenarios and pl
 - Nest when the inside of a node is a story of its own. If it only needs a paragraph, use a node doc (`nodes/<id>.md`); if it only needs a different slice of the same model, use a view.
 - Several nodes may open the same diagram. A diagram cannot be inside itself: a node that opens its own diagram, or diagrams that open each other in a circle, are errors.
 - `idocs check` verifies the name, `view` and `scenario` across diagrams, at the line that wrote them. `idocs list` shows what opens what.
-- Nothing else is needed on the page: `<Diagram name="shop" />` carries the diagrams it can reach.
+- Nothing else is needed on the page: a compiled diagram carries the diagrams it can open, so `<Diagram name="shop" />` just works.
 - Links: `#shop~=orders/stock` opens `orders` then `stock`; each level's scenario is `#shop/orders=create.2`.
 
 ## Pages

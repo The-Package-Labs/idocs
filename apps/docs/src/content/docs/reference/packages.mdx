@@ -68,7 +68,7 @@ Browser-safe: no `node:*`, YAML, Zod or Iconify. This is the part the client bun
 | `routeEdges` | The orthogonal edge router. |
 | `buildStory` | Turns a scenario into the lanes, boxes and links of the story view. |
 | `buildTimeline`, `frameAt` | Turns a scenario into a timeline, and a time into a frame. Pure. |
-| `nestedDiagrams`, `linkDiagrams` | The diagrams one diagram can open through its nodes' `diagram:` keys, and the checks that span diagrams. See [nested diagrams](../../format/nested-diagrams/). |
+| `attachNested`, `nestedDiagrams`, `linkDiagrams` | Put the diagrams a diagram can open inside it as `nested` (`loadProject` does this for you), find them, and check what spans diagrams. See [nested diagrams](../../format/nested-diagrams/). |
 | `scopeSvgIds` | Gives an inline SVG's ids a prefix, so two copies on a page do not collide. |
 | Constants | The built-in node and edge kinds, step kind colours and the default card width. |
 

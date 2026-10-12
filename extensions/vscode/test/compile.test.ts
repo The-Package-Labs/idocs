@@ -30,7 +30,9 @@ describe('compileFolder matches the real loader', () => {
         refBases: refBasesFor(folder, []),
       })
       expect(outcome).toBeDefined()
-      expect(outcome?.diagram).toEqual(expected.diagrams[name])
+      // The loader also attaches the diagrams a diagram opens; a single folder cannot know them.
+      const { nested: _, ...theirDiagram } = expected.diagrams[name]!
+      expect(outcome?.diagram).toEqual(theirDiagram)
       // Same problems, ignoring the path style and the stale-reference warnings added on top.
       const own = outcome?.diagnostics.filter((d) => !d.message.includes('cites')) ?? []
       const theirs = expected.diagnostics.filter((d) => d.file.includes(`diagrams/${name}/`))

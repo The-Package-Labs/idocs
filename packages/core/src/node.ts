@@ -2,13 +2,13 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 import { compileDiagram, type Diagnostic } from './compile'
-import { type LinkEntry, linkDiagrams } from './nesting'
+import { attachNested, type LinkEntry, linkDiagrams } from './nesting'
 import type { CompiledDiagram } from './types'
 
 export * from './compile'
 export { loadIconSets, resolveIcon, searchIcons } from './icons'
 export { renderMarkdown } from './markdown'
-export { type LinkEntry, linkDiagrams, nestedDiagrams } from './nesting'
+export { attachNested, type LinkEntry, linkDiagrams, nestedDiagrams } from './nesting'
 export { authoringJsonSchema, FamilySchema, KNOWN_KEYS, RootSchema } from './schema'
 
 export interface LoadedProject {
@@ -62,6 +62,7 @@ export function loadProject(root: string, dir = 'diagrams'): LoadedProject {
     result.watch.push(folder)
   }
   result.diagnostics.push(...linkDiagrams(entries))
+  result.diagrams = attachNested(result.diagrams)
   return result
 }
 

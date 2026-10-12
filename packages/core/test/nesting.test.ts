@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type LinkEntry, linkDiagrams, nestedDiagrams } from '../src'
+import { attachNested, type LinkEntry, linkDiagrams, nestedDiagrams } from '../src'
 import { compileDiagram } from '../src/node'
 import { compileText, loadDocs } from './helpers'
 
@@ -202,12 +202,65 @@ describe('nestedDiagrams', () => {
   })
 })
 
+describe('attachNested', () => {
+  const { diagrams } = project({
+    top: `title: T\nnodes:\n  x: { diagram: mid }\n  y: { diagram: leaf }\n`,
+    mid: `title: M\nnodes:\n  z: { diagram: leaf }\n`,
+    leaf,
+    alone: 'title: O\nnodes:\n  q: Q\n',
+  })
+  const bundled = attachNested(diagrams)
+
+  it('gives a diagram everything it can open, however deep', () => {
+    expect(Object.keys(bundled.top!.nested!).sort()).toEqual(['leaf', 'mid'])
+    expect(Object.keys(bundled.mid!.nested!)).toEqual(['leaf'])
+  })
+
+  it('leaves a diagram that opens nothing as it was, with no empty nested', () => {
+    expect(bundled.leaf).toEqual(diagrams.leaf)
+    expect(bundled.alone).toEqual(diagrams.alone)
+    expect('nested' in bundled.alone!).toBe(false)
+  })
+
+  it('keeps the entries flat, so nothing is carried twice', () => {
+    for (const d of Object.values(bundled.top!.nested!)) expect(d.nested).toBeUndefined()
+  })
+
+  it('is plain JSON, and does not touch what it was given', () => {
+    expect(JSON.parse(JSON.stringify(bundled.top))).toEqual(bundled.top)
+    expect(diagrams.top!.nested).toBeUndefined()
+  })
+
+  it('gives the same answer when applied twice', () => {
+    expect(attachNested(bundled)).toEqual(bundled)
+  })
+
+  it('terminates on a circle that linking would have refused', () => {
+    const { diagrams: loop } = project({
+      a: `title: A\nnodes:\n  go: { diagram: b }\n`,
+      b: `title: B\nnodes:\n  back: { diagram: a }\n`,
+    })
+    expect(Object.keys(attachNested(loop).a!.nested!)).toEqual(['b'])
+  })
+})
+
 describe('the docs examples', () => {
   const docs = loadDocs()
 
-  it('link without errors, and the nested shop reaches three levels', () => {
+  it('link without errors', () => {
     expect(docs.diagnostics.filter((d) => d.severity === 'error')).toEqual([])
-    const reach = Object.keys(nestedDiagrams(docs.diagrams, 'nest-shop')).sort()
-    expect(reach).toEqual(['nest-orders', 'nest-stock', 'payments'])
+  })
+
+  it('load with their insides attached: the nested shop reaches three levels', () => {
+    expect(Object.keys(docs.diagrams['nest-shop']!.nested!).sort()).toEqual([
+      'nest-orders',
+      'nest-stock',
+      'payments',
+    ])
+    expect(Object.keys(docs.diagrams['nest-orders']!.nested!)).toEqual(['nest-stock'])
+  })
+
+  it('leave a diagram that opens nothing without a nested key', () => {
+    expect('nested' in docs.diagrams.checkout!).toBe(false)
   })
 })
