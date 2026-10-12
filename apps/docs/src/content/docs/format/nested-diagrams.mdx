@@ -10,7 +10,7 @@ import { Aside } from '@astrojs/starlight/components'
 
 One picture cannot show a system and the inside of every part of it. Give a node a `diagram:` and the reader can look inside it in two ways: **expand** it, so the whole inner diagram appears right there as a group, or **open** it, moving into that diagram with its own views, scenarios and player, and coming back to exactly where they were.
 
-Try both. **Expand** the order service, then **expand** the stock card inside it. Then **open** the stock card and use **Back**.
+Try it. Click the order service to see a picture of what is inside it. Then **expand** it with the first icon, **expand** the stock card inside it, and **open** the stock card with the second icon and use **Back**.
 
 <Diagram name="nest-shop" showDescription />
 
@@ -65,9 +65,9 @@ A node that is expanded behaves as one box for the outer diagram: its edges end 
 
 ## What the reader sees
 
-- **On the card**, a strip with **Expand** and **Open**, and a small stacked edge, so a node that holds a diagram looks different from one that does not.
-- **In the drawer**, the same actions at the top, with the name of the diagram and how much is in it. This is the way in for the keyboard and for screen readers.
-- **Expanded**, the group has a header with **Collapse** and **Open**. The camera glides to it so the reader sees what appeared.
+- **On the card**, two small icon buttons, one to expand and one to open, and a stacked edge, so a node that holds a diagram looks different from one that does not. Each has a tooltip.
+- **In the side panel**, clicking the node shows the diagram it holds as a picture, drawn from its real layout and scaled to fit, with its name and how much is in it. The same two icon buttons sit beside it, with names for screen readers, so this is the way in for the keyboard too. Once the node is expanded, the diagram itself is on the canvas, so the panel keeps the buttons (**Collapse** and **Open**) and drops the picture.
+- **Expanded**, the group has a header with icon buttons to collapse it and to open it. The camera glides to it so the reader sees what appeared.
 - **After opening**, the diagram zooms in from the card, and a trail appears above it: `Online shop › Order service › Stock`. **Back** goes up one level, any crumb jumps straight to that level, and <kbd>Esc</kbd> goes up one level too (unless the drawer is open, which closes first). Opening a node that sits inside an expanded group opens every level on the way, so the trail still says where you are.
 - **After going back**, the parent is exactly as it was left: same view, same scenario and step, same open drawer, same groups expanded. The card that was opened pulses once, so the eye finds its place.
 

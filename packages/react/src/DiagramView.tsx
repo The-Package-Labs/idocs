@@ -11,6 +11,7 @@ import {
   type Layout,
   measurable,
   type NestedLayout,
+  openingView,
   type Rect,
   rectOfPath,
 } from '@the-package-labs/idocs-core'
@@ -818,6 +819,7 @@ function Level({
                 view={target.view}
                 nodeId={target.id}
                 inside={insideOf(target.diagram.nodes[target.id]!, reach, canOpen)}
+                peek={peekOf(target.diagram.nodes[target.id]!, reach)}
                 expanded={expandedSet.has(selected)}
                 onExpand={() => toggleExpand(selected)}
                 onOpen={() => openPath(selected)}
@@ -999,6 +1001,13 @@ const World = memo(function World({
 })
 
 const NO_DIAGRAMS: Diagrams = {}
+
+/** The diagram a node holds, and the view to draw of it, for the side panel's picture. */
+function peekOf(node: CompiledNode, diagrams: Diagrams) {
+  const ref = node.diagram
+  const diagram = ref && diagrams[ref.name]
+  return ref && diagram ? { diagram, viewId: openingView(diagram, ref) } : undefined
+}
 
 /**
  * The diagram, view and node a path names, following the diagrams shown in place. `prefix` is what

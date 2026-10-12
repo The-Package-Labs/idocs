@@ -27,6 +27,9 @@ export interface NodeInside {
 export const insideSummary = (inside: NodeInside) =>
   `${inside.title}: ${count(inside.nodes, 'node')}, ${count(inside.scenarios, 'scenario')}`
 
+export const insideCounts = (inside: NodeInside) =>
+  `${count(inside.nodes, 'node')} · ${count(inside.scenarios, 'scenario')}`
+
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`
 
 export function ExpandIcon() {
@@ -86,6 +89,8 @@ interface Props {
   style?: React.CSSProperties
   state?: NodeCardState
   measure?: boolean
+  /** Drawn as a picture of the card, in a preview: nothing to focus, click or hover. */
+  preview?: boolean
   /**
    * Where the card is in a diagram shown inside another one: node ids joined with `/`. It names
    * the card to callbacks, and in `data-node`. A card at the top is just its id.
@@ -106,6 +111,7 @@ export const NodeCard = memo(function NodeCard({
   style,
   state = {},
   measure,
+  preview,
   path,
   inside,
   onSelect,
@@ -113,7 +119,7 @@ export const NodeCard = memo(function NodeCard({
   onOpen,
   onHover,
 }: Props) {
-  const interactive = !measure
+  const interactive = !measure && !preview
   const id = path ?? node.id
   return (
     <div
@@ -204,16 +210,17 @@ export const NodeCard = memo(function NodeCard({
       {inside && (
         <div className="idocs-node-inside" title={`${insideSummary(inside)}`} aria-hidden="true">
           {inside.expand && (
-            <span className="idocs-node-act" data-act="expand" title="Show it here, as a group">
+            <span className="idocs-node-act" data-act="expand" title="Expand here, as a group">
               <ExpandIcon />
-              <span>Expand</span>
             </span>
           )}
           {inside.open && (
-            <span className="idocs-node-act" data-act="open" title="Move into it, with a way back">
+            <span
+              className="idocs-node-act"
+              data-act="open"
+              title={inside.expand ? 'Open, with a way back' : 'Look inside, with a way back'}
+            >
               <LayersIcon />
-              <span>{inside.expand ? 'Open' : 'Look inside'}</span>
-              <span className="idocs-node-inside-go">›</span>
             </span>
           )}
         </div>

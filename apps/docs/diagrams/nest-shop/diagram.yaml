@@ -1,9 +1,9 @@
 # yaml-language-server: $schema=../diagram.schema.json
 title: Online shop
 description: |
-  The shop at a glance. Cards marked **Expand** and **Open** hold a whole diagram of their
-  own: expand one to see it right here as a group, or open it to move into it and play its
-  scenarios. **Back** (or the trail above) returns here.
+  The shop at a glance. Cards with two small icons on their bottom edge hold a whole diagram of
+  their own: click one to see a picture of it, expand it to see it right here as a group, or
+  open it to move into it and play its scenarios. **Back** (or the trail above) returns here.
 
 nodes:
   browser: { kind: client, icon: react, title: Shopper browser }

@@ -1,7 +1,8 @@
 import type { CompiledDiagram, CompiledView } from '@the-package-labs/idocs-core'
 import { useEffect, useRef } from 'react'
+import { DiagramPreview } from './DiagramPreview'
 import { IconTile } from './Icon'
-import { CollapseIcon, ExpandIcon, insideSummary, LayersIcon, type NodeInside } from './NodeCard'
+import { CollapseIcon, ExpandIcon, insideCounts, LayersIcon, type NodeInside } from './NodeCard'
 import { cx } from './util'
 
 interface Props {
@@ -10,6 +11,8 @@ interface Props {
   nodeId: string
   /** Set when the node holds a diagram the reader can expand in place or move into. */
   inside?: NodeInside
+  /** The diagram the node holds and the view to draw of it, shown as a picture at the top. */
+  peek?: { diagram: CompiledDiagram; viewId: string }
   /** Whether it is shown in place right now. */
   expanded?: boolean
   onExpand?: (id: string) => void
@@ -23,6 +26,7 @@ export function Drawer({
   view,
   nodeId,
   inside,
+  peek,
   expanded,
   onExpand,
   onOpen,
@@ -85,36 +89,38 @@ export function Drawer({
         </button>
       </div>
       <div className="idocs-drawer-body">
-        {inside && ((inside.expand && onExpand) || (inside.open && onOpen)) && (
-          <div className="idocs-actions">
-            {inside.expand && onExpand && (
-              <button type="button" className="idocs-open" onClick={() => onExpand(nodeId)}>
-                <span className="idocs-open-icon">
+        {inside && (
+          <section className="idocs-peek" aria-label={`The diagram inside ${node.title}`}>
+            <div className="idocs-peek-head">
+              <div className="idocs-peek-title">
+                <b>{peek?.diagram.title ?? inside.title}</b>
+                <span>{insideCounts(inside)}</span>
+              </div>
+              {inside.expand && onExpand && (
+                <button
+                  type="button"
+                  className="idocs-icon-btn"
+                  aria-label={expanded ? 'Collapse' : 'Expand here'}
+                  title={expanded ? 'Collapse' : 'Expand here, as a group'}
+                  onClick={() => onExpand(nodeId)}
+                >
                   {expanded ? <CollapseIcon /> : <ExpandIcon />}
-                </span>
-                <span className="idocs-open-text">
-                  <b>{expanded ? 'Collapse' : 'Expand here'}</b>
-                  <span>
-                    {expanded ? 'Fold it back into one card' : 'Show it in place, as a group'}
-                  </span>
-                </span>
-              </button>
-            )}
-            {inside.open && onOpen && (
-              <button type="button" className="idocs-open" onClick={() => onOpen(nodeId)}>
-                <span className="idocs-open-icon">
+                </button>
+              )}
+              {inside.open && onOpen && (
+                <button
+                  type="button"
+                  className="idocs-icon-btn"
+                  aria-label="Open"
+                  title="Open, with a way back"
+                  onClick={() => onOpen(nodeId)}
+                >
                   <LayersIcon />
-                </span>
-                <span className="idocs-open-text">
-                  <b>{inside.expand ? 'Open' : 'Look inside'}</b>
-                  <span>{insideSummary(inside)}</span>
-                </span>
-                <span className="idocs-open-go" aria-hidden="true">
-                  ›
-                </span>
-              </button>
-            )}
-          </div>
+                </button>
+              )}
+            </div>
+            {peek && !expanded && <DiagramPreview diagram={peek.diagram} viewId={peek.viewId} />}
+          </section>
         )}
         {node.docHtml ? (
           <div className="idocs-md" dangerouslySetInnerHTML={{ __html: node.docHtml }} />

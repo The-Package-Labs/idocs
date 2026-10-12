@@ -1529,8 +1529,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 6px 8px 7px;
+  padding: 4px 8px 5px;
   background: color-mix(in srgb, var(--idocs-accent) 7%, transparent);
   transition:
     background 0.15s,
@@ -1540,21 +1539,13 @@
   border-left: 1px solid color-mix(in srgb, var(--idocs-accent) 28%, var(--idocs-line));
 }
 .idocs-node-act svg {
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
   flex: none;
-}
-.idocs-node-inside-go {
-  font-size: 15px;
-  line-height: 1;
-  transition: transform 0.15s;
 }
 .idocs-node-act:hover {
   background: var(--idocs-accent);
   color: var(--idocs-surface);
-}
-.idocs-node-act:hover .idocs-node-inside-go {
-  transform: translateX(2px);
 }
 
 /* After coming back, the card that was opened pulses once so the eye finds its place. */
@@ -1573,65 +1564,84 @@
   }
 }
 
-/* The same actions in the drawer: the way in for keyboards and screen readers. */
-.idocs-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0 0 14px;
-}
-.idocs-actions .idocs-open {
-  margin: 0;
-}
-.idocs-open {
-  appearance: none;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  width: 100%;
-  margin: 0 0 14px;
-  padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--idocs-accent) 40%, var(--idocs-line));
+/* The side panel's picture of what a node holds, with the two ways in as icon buttons. */
+.idocs-peek {
+  margin: 0 0 16px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--idocs-accent) 35%, var(--idocs-line));
   border-radius: 10px;
   background: var(--idocs-accent-soft);
-  color: var(--idocs-ink);
-  text-align: left;
-  cursor: pointer;
 }
-.idocs-open:hover {
-  border-color: var(--idocs-accent);
+.idocs-peek-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
-.idocs-open-icon {
+.idocs-peek-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+.idocs-peek-title b {
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.idocs-peek-title span {
+  font-size: 12px;
+  color: var(--idocs-muted);
+}
+.idocs-peek-box {
+  position: relative;
+  margin-top: 10px;
+  overflow: hidden;
+  border: 1px solid var(--idocs-line);
+  border-radius: 8px;
+  background: var(--idocs-bg);
+}
+.idocs-peek-world {
+  position: absolute;
+  top: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+  user-select: none;
+}
+.idocs-peek-wait {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: var(--idocs-muted);
+}
+.idocs-icon-btn {
+  appearance: none;
   flex: none;
   display: grid;
   place-items: center;
   width: 30px;
   height: 30px;
+  border: 1px solid var(--idocs-line);
   border-radius: 8px;
-  background: var(--idocs-accent);
-  color: var(--idocs-surface);
+  background: var(--idocs-surface);
+  color: var(--idocs-accent);
+  cursor: pointer;
 }
-.idocs-open-icon svg {
+.idocs-icon-btn svg {
   width: 16px;
   height: 16px;
 }
-.idocs-open-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  flex: 1;
+.idocs-icon-btn:hover {
+  border-color: var(--idocs-accent);
+  background: var(--idocs-accent);
+  color: var(--idocs-surface);
 }
-.idocs-open-text b {
-  font-size: 13.5px;
-}
-.idocs-open-text span {
-  font-size: 12px;
-  color: var(--idocs-muted);
-}
-.idocs-open-go {
-  font-size: 20px;
-  line-height: 1;
-  color: var(--idocs-accent);
+.idocs-icon-btn:focus-visible {
+  outline: 2px solid var(--idocs-accent);
+  outline-offset: 2px;
 }
 
 /* The way back: shown only below the first level. */
@@ -1665,8 +1675,7 @@
   color: var(--idocs-accent);
 }
 .idocs-trail-back:focus-visible,
-.idocs-crumb:focus-visible,
-.idocs-open:focus-visible {
+.idocs-crumb:focus-visible {
   outline: 2px solid var(--idocs-accent);
   outline-offset: 2px;
 }
@@ -1844,22 +1853,19 @@
 .idocs-inline-act {
   appearance: none;
   flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 26px;
-  padding: 0 9px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
   border: 1px solid var(--idocs-line);
   border-radius: 7px;
   background: var(--idocs-surface);
   color: var(--idocs-muted);
-  font-size: 11.5px;
-  font-weight: 600;
   cursor: pointer;
 }
 .idocs-inline-act svg {
-  width: 13px;
-  height: 13px;
+  width: 15px;
+  height: 15px;
 }
 .idocs-inline-act:hover {
   border-color: var(--idocs-accent);

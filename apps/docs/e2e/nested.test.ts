@@ -45,6 +45,7 @@ const card = (n: number, id: string) => `${level(n)} [data-node="${id}"]`
 /** The strip's two actions: show it in place, move into it. */
 const strip = (n: number, id: string) => `${card(n, id)} [data-act="open"]`
 const expand = (n: number, id: string) => `${card(n, id)} [data-act="expand"]`
+const labels = (els: Element[]) => els.map((e) => e.getAttribute('aria-label'))
 const group = (path: string) =>
   `.idocs[data-diagram="nest-shop"] [data-level="0"] [data-inline][data-node="${path}"]`
 const shown = (page: Page) =>
@@ -236,9 +237,12 @@ describe('the drawer', () => {
     const { page, problems, close } = await open()
     await page.locator(card(0, 'payments')).focus()
     await page.keyboard.press('Enter')
-    const open_ = page.locator('.idocs-drawer .idocs-open', { hasText: 'Open' })
+    const open_ = page.locator('.idocs-drawer button[aria-label="Open"]')
     await open_.waitFor()
-    expect(await open_.textContent()).toContain('Payments: 6 nodes, 2 scenarios')
+    // The panel says what is inside, and the buttons are icons with names for the keyboard.
+    expect(await page.locator('.idocs-drawer .idocs-peek-title').textContent()).toBe(
+      'Payments6 nodes · 2 scenarios',
+    )
     await open_.focus()
     await page.keyboard.press('Enter')
 
@@ -323,6 +327,93 @@ describe('links', () => {
     await page.waitForTimeout(300)
     expect(await shown(page)).toBe('0')
     expect(problems).toEqual([])
+    await close()
+  })
+})
+
+describe('the side panel', () => {
+  it('shows the diagram a node holds, as a picture, when the node is clicked', async () => {
+    const { page, problems, close } = await open()
+    await page.click(`${card(0, 'orders')} .idocs-node-title`)
+    await page.waitForSelector('.idocs-drawer .idocs-peek-world .idocs-node')
+    // Every node of the inner diagram is in the picture, which cannot be focused or clicked.
+    expect(await page.locator('.idocs-peek-world .idocs-node').count()).toBe(5)
+    expect(await page.locator('.idocs-peek-world .idocs-edge').count()).toBeGreaterThan(3)
+    expect(
+      await page.locator('.idocs-peek-world [role="button"], .idocs-peek-world [tabindex]').count(),
+    ).toBe(0)
+    expect(await page.locator('.idocs-peek-title').textContent()).toBe(
+      'Order service5 nodes · 1 scenario',
+    )
+    // It fits the panel: scaled down to the width it has, not overflowing it.
+    const fits = await page.evaluate(() => {
+      const box = document.querySelector('.idocs-peek-box')!.getBoundingClientRect()
+      const world = document.querySelector('.idocs-peek-world')!.getBoundingClientRect()
+      return world.right <= box.right + 1 && world.bottom <= box.bottom + 1
+    })
+    expect(fits).toBe(true)
+
+    // Another node swaps the picture; a node with nothing inside has none. The panel covers the
+    // right of the canvas, so close it to reach the next card.
+    await page.keyboard.press('Escape')
+    await page.click(`${card(0, 'payments')} .idocs-node-title`)
+    await page.waitForFunction(() =>
+      document.querySelector('.idocs-peek-title')?.textContent?.startsWith('Payments'),
+    )
+    await page.waitForSelector('.idocs-peek-world .idocs-node')
+    expect(await page.locator('.idocs-peek-world .idocs-node').count()).toBe(6)
+    await page.keyboard.press('Escape')
+    await page.click(`${card(0, 'browser')} .idocs-node-title`)
+    await page.waitForFunction(() => !document.querySelector('.idocs-peek'))
+    expect(problems).toEqual([])
+    await close()
+  })
+
+  it('has the two ways in as icon buttons, beside the picture', async () => {
+    const { page, close } = await open()
+    await page.click(`${card(0, 'orders')} .idocs-node-title`)
+    const buttons = page.locator('.idocs-peek-head button')
+    expect(await buttons.evaluateAll(labels)).toEqual(['Expand here', 'Open'])
+    // Icons only: no words on them, and a tooltip for the pointer.
+    expect(await buttons.allTextContents()).toEqual(['', ''])
+    expect(await buttons.first().getAttribute('title')).toContain('Expand')
+
+    await buttons.first().click()
+    await page.waitForSelector(group('orders'))
+    // Expanded, the thing itself is on the canvas: the panel keeps the buttons and drops the picture.
+    expect(await page.locator('.idocs-peek-world').count()).toBe(0)
+    expect(await page.locator('.idocs-peek-head button').evaluateAll(labels)).toEqual([
+      'Collapse',
+      'Open',
+    ])
+
+    await page.locator('.idocs-peek-head button[aria-label="Open"]').click()
+    await page.waitForSelector(`${level(1)}:not([hidden]) [data-node="stock"]`)
+    await close()
+  })
+
+  it('shows it for a node inside a group too', async () => {
+    const { page, close } = await open()
+    await page.click(expand(0, 'orders'))
+    await page.waitForSelector(group('orders'))
+    await page.click(`${card(0, 'orders/stock')} .idocs-node-title`)
+    await page.waitForSelector('.idocs-drawer .idocs-peek-world .idocs-node')
+    expect(await page.locator('.idocs-peek-world .idocs-node').count()).toBe(3)
+    expect(await page.locator('.idocs-peek-title').textContent()).toContain('Stock reservations')
+    await close()
+  })
+
+  it('draws the card strip and the group header with icons only', async () => {
+    const { page, close } = await open()
+    expect(await page.locator(`${card(0, 'orders')} [data-act]`).allTextContents()).toEqual([
+      '',
+      '',
+    ])
+    await page.click(expand(0, 'orders'))
+    await page.waitForSelector(group('orders'))
+    const head = page.locator(`${group('orders')} > .idocs-inline-head button.idocs-inline-act`)
+    expect(await head.allTextContents()).toEqual(['', ''])
+    expect(await head.evaluateAll(labels)).toEqual(['Collapse Order service', 'Open Order service'])
     await close()
   })
 })
@@ -461,8 +552,10 @@ describe('expanding in place', () => {
     await page
       .locator(`${card(0, 'orders')} > .idocs-inline-head .idocs-inline-title`)
       .evaluate((el) => (el as HTMLElement).click())
-    await page.locator('.idocs-drawer .idocs-open', { hasText: 'Collapse' }).click()
+    await page.locator('.idocs-drawer button[aria-label="Collapse"]').click()
     await page.waitForSelector(`${card(0, 'orders')}:not([data-inline])`)
+    // The panel stays on the node, over the right of the canvas: close it to reach the card.
+    await page.keyboard.press('Escape')
     await page.click(expand(0, 'orders'))
     await page.waitForSelector(group('orders/stock'))
     await close()
@@ -488,7 +581,7 @@ describe('expanding in place', () => {
     await page.keyboard.press('Escape')
     await page.click(`${group('orders')} .idocs-inline-title`)
     await page.waitForSelector('.idocs-drawer')
-    expect(await page.locator('.idocs-drawer .idocs-open b').allTextContents()).toEqual([
+    expect(await page.locator('.idocs-peek-head button').evaluateAll(labels)).toEqual([
       'Collapse',
       'Open',
     ])
@@ -499,11 +592,11 @@ describe('expanding in place', () => {
     const { page, close } = await open()
     await page.locator(card(0, 'orders')).focus()
     await page.keyboard.press('Enter')
-    expect(await page.locator('.idocs-drawer .idocs-open b').allTextContents()).toEqual([
+    expect(await page.locator('.idocs-peek-head button').evaluateAll(labels)).toEqual([
       'Expand here',
       'Open',
     ])
-    await page.locator('.idocs-drawer .idocs-open', { hasText: 'Expand here' }).click()
+    await page.locator('.idocs-drawer button[aria-label="Expand here"]').click()
     await page.waitForSelector(group('orders'))
     await close()
   })
@@ -514,10 +607,12 @@ describe('expanding in place', () => {
     const second = page.locator('.idocs[data-diagram="nest-inline"]')
     await second.locator('[data-node="stock"][data-inline]').waitFor()
     expect(await second.locator('[data-node="stock/api"]').count()).toBe(1)
-    // Open only: no way to expand, and the strip says what it does.
-    expect(await second.locator('[data-node="reports"] [data-act]').allTextContents()).toEqual([
-      'Look inside›',
-    ])
+    // Open only: no way to expand, so the strip has the one icon.
+    expect(
+      await second
+        .locator('[data-node="reports"] [data-act]')
+        .evaluateAll((els) => els.map((e) => e.getAttribute('data-act'))),
+    ).toEqual(['open'])
     expect(await second.locator('.idocs-drawer').count()).toBe(0)
     expect(problems).toEqual([])
     await close()
