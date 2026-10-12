@@ -1253,3 +1253,107 @@ body.lp {
 .lp .idocs-bleed {
   margin: 0;
 }
+
+/* ---------- the i in idocs ---------- */
+
+.lp-hero .lp-iwords-label {
+  margin: 36px 0 0;
+  font: 500 0.75rem / 1 var(--lp-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--lp-faint);
+}
+.lp-hero .lp-iwords-label b {
+  color: var(--lp-accent);
+  font-weight: 600;
+  text-transform: none;
+  font-size: 1.05em;
+}
+.lp-iwords {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px 22px;
+  max-width: 58rem;
+}
+.lp-iwords li {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-left: 14px;
+  border-left: 2px solid color-mix(in srgb, var(--lp-accent) 55%, var(--lp-line));
+}
+.lp-iword {
+  font-family: var(--lp-display);
+  font-size: clamp(1.25rem, 2vw, 1.55rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+.lp-i {
+  color: var(--lp-accent);
+}
+.lp-iwords li > span {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--lp-muted);
+  text-wrap: pretty;
+}
+.lp-iwords + .lp-cta {
+  margin-top: 28px;
+}
+@media (max-width: 900px) {
+  .lp-iwords {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  /* On a phone the words alone carry it, two to a row, so the diagram is not pushed far down. */
+  .lp-iwords {
+    gap: 10px 14px;
+  }
+  .lp-iwords li > span {
+    display: none;
+  }
+}
+
+/* What to try in the diagram under the hero. */
+.lp-try {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 22px;
+}
+.lp-try li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--lp-muted);
+}
+.lp-try li b {
+  color: var(--lp-ink);
+  font-weight: 600;
+}
+.lp-try svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  color: var(--lp-accent);
+}
+@media (max-width: 900px) {
+  .lp-try {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .lp-try {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

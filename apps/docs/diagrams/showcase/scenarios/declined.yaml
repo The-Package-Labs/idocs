@@ -1,0 +1,23 @@
+title: Card declined
+mode: story
+summary: |
+  The same checkout, told for someone new to the system: who does what when the bank says no.
+lanes:
+  - { title: Shopper, nodes: [shopper] }
+  - { title: Edge, nodes: [cdn, gateway] }
+  - { title: Orders, nodes: [orders, postgres] }
+  - { title: Payments, nodes: [payments, stripe] }
+phases:
+  - title: Charge
+    steps:
+      - orders -> payments: charge card
+      - payments -> stripe: create payment intent
+      - stripe -> payments: { label: card declined, kind: error }
+  - title: Recover
+    steps:
+      - payments -> orders: { label: 402 declined, kind: error }
+      - orders -> postgres: { label: mark order failed, kind: lookup }
+      - orders -> shopper:
+          label: payment failed
+          kind: error
+          detail: The order is kept for 24 hours, so a second card does not start over.

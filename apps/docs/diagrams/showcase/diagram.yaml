@@ -1,0 +1,168 @@
+# yaml-language-server: $schema=../diagram.schema.json
+title: Northwind Market
+description: |
+  One diagram with most of what idocs does. **Click** a box for its docs and a picture of what is
+  inside it. **Expand** a card that holds a diagram, or **open** it. **Press play** on a scenario,
+  switch **views**, and hide what is still **planned**.
+
+# Your own kinds and edge kinds sit next to the built-in ones.
+kinds:
+  partner: { icon: lucide:handshake, family: amber }
+edgeKinds:
+  audit: { label: Audit trail, color: violet, width: 1.6, dash: "5 3" }
+
+groups:
+  edge: { label: Edge, caption: "CDN, gateway and sign-in" }
+  platform:
+    label: Platform
+    caption: Kubernetes · namespace market
+    rows:
+      - [services]
+      - [data]
+  services: { label: Services, in: platform }
+  data: { label: Data and messaging, in: platform, layout: row }
+  partners: { label: Partners, caption: outside our network }
+
+nodes:
+  shopper: { kind: user, title: Shopper, sub: web and mobile }
+
+  cdn:
+    kind: external
+    icon: cloudflare
+    title: CDN
+    sub: static assets · TLS
+    status: optional
+    in: edge
+  gateway:
+    kind: gateway
+    icon: nginx
+    title: API gateway
+    sub: ":443 · rate limit"
+    in: edge
+    chips:
+      - { label: /orders/*, sub: "→ orders" }
+      - { label: /pay/*, sub: "→ payments" }
+
+  auth:
+    kind: auth
+    icon: keycloak
+    title: Keycloak
+    sub: OIDC · realm market
+    uses: [postgres]
+    in: edge
+  orders:
+    kind: service
+    icon: dotnet
+    title: Orders
+    sub: ":4003 · .NET"
+    lines: [creates and tracks orders]
+    links:
+      - { label: idocs on GitHub, url: https://github.com/The-Package-Labs/idocs }
+    diagram: nest-orders
+    in: services
+  payments:
+    kind: service
+    icon: nodejs
+    title: Payments
+    sub: opens on its "pay" scenario
+    diagram: { name: payments, scenario: pay }
+    in: services
+  stock:
+    kind: service
+    icon: go
+    title: Stock
+    sub: holds items for an order
+    diagram: nest-stock
+    in: services
+  notifier:
+    kind: worker
+    icon: lucide:mail
+    title: Notifier
+    sub: receipts by email
+    status: planned
+    in: services
+
+  postgres: { kind: database, icon: postgresql, title: PostgreSQL, sub: orders and users, in: data }
+  rabbitmq: { kind: queue, icon: rabbitmq, title: RabbitMQ, sub: order.created, in: data }
+
+  stripe: { kind: external, icon: stripe, title: Stripe, sub: card processor, in: partners }
+  erp: { kind: partner, title: Legacy ERP, sub: books the sales, status: legacy, in: partners }
+
+edges:
+  - shopper -> cdn: HTTPS
+  - cdn -> gateway: HTTPS
+  # A hidden edge is not drawn, but a scenario can still fly along it.
+  - gateway -> auth: { label: verify JWT, hidden: true }
+  - gateway -> orders: /orders
+  - gateway -> payments: /pay
+  - orders -> postgres: { kind: data, label: SQL }
+  - orders -> stock: reserve
+  - orders -> payments: charge
+  - orders -> rabbitmq: { kind: queue, label: order.created }
+  - rabbitmq -> notifier: { kind: queue, status: planned }
+  - payments -> stripe: { kind: channel, label: charge }
+  - orders -> erp: { kind: audit, label: nightly }
+
+views:
+  overview:
+    title: Overview
+    direction: RIGHT
+    keys: true
+  backend:
+    title: Backend only
+    include: [platform, stripe, erp]
+    direction: DOWN
+    summary: The same model with the edge and the shopper left out.
+  interfaces:
+    title: Interfaces
+    include: [gateway, orders, payments, stripe]
+    direction: RIGHT
+    keys: true
+    interfaces: true
+
+scenarios:
+  order:
+    title: Place an order
+    summary: |
+      The shopper checks out. We write the order down **first**, charge the card **second**, and
+      tell the shopper **last**, so a crash never loses money.
+    phases:
+      - title: Reach the shop
+        caption: through the edge
+        steps:
+          - shopper -> cdn: load storefront
+          - cdn -> gateway: POST /orders
+          - gateway -> auth: { label: verify JWT, kind: lookup }
+          - at auth:
+              label: token is valid
+              note: The gateway reaches Keycloak over an edge that is not drawn.
+      - title: Create the order
+        steps:
+          - gateway -> orders: create order
+          - orders -> stock: reserve items
+          - par: # these two start together
+              - orders -> postgres: { label: INSERT order, kind: lookup }
+              - orders -> rabbitmq: { label: order.created, kind: event }
+      - title: Charge the card
+        steps:
+          - orders -> payments: charge card
+          - payments -> stripe: create payment intent
+          - at stripe:
+              label: authorise card
+              note: The one step we do not control, and the slowest.
+          - stripe -> payments: { label: succeeded, kind: response }
+      - title: Tell the shopper
+        steps:
+          - payments -> orders: paid
+          - rabbitmq -> notifier: { label: email receipt, status: planned }
+          - orders -> shopper: 201 Created
+  sync:
+    title: Nightly ERP sync
+    view: backend
+    steps:
+      - at orders: collect the day's orders
+      - orders -> erp: { label: audit batch, kind: event }
+      - at erp:
+          label: books the sales
+          status: legacy
+          note: Still the system of record for finance, until the ledger service replaces it.

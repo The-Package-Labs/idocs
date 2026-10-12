@@ -4,10 +4,20 @@ import { diagrams } from 'virtual:idocs/diagrams'
 import { withBase } from '../../lib/base'
 import Icon from './Icon.astro'
 
-const demo = diagrams.checkout!
+// One diagram that uses most of the format, so the hero shows the product and not a sample of it.
+const demo = diagrams.showcase!
 const nodes = Object.keys(demo.nodes).length
 const scenarios = demo.scenarios.length
+const views = demo.views.length
 const install = 'npm create idocs@latest my-docs'
+
+// What the i in idocs stands for.
+const iwords = [
+  { word: 'nteractive', text: 'Click a box, expand a card, press play on a request.' },
+  { word: 'ntuitive', text: 'Plain YAML and automatic layout. No coordinates, no canvas to drag.' },
+  { word: 'ntegrated', text: 'It lives in your repo and your docs site, and is checked at build time.' },
+  { word: 'mpressive', text: 'Brand icons, light and dark, and diagrams worth putting on a page.' },
+]
 ---
 
 <section class="lp-hero">
@@ -37,6 +47,20 @@ const install = 'npm create idocs@latest my-docs'
       Describe your system in YAML. idocs lays it out, documents every box, and replays a request
       travelling through it, one step at a time. Readers see how it works instead of guessing.
     </p>
+    <p class="lp-iwords-label">the <b>i</b> in idocs</p>
+    <ul class="lp-iwords">
+      {
+        iwords.map((w) => (
+          <li>
+            <b class="lp-iword">
+              <span class="lp-i">i</span>
+              {w.word}
+            </b>
+            <span>{w.text}</span>
+          </li>
+        ))
+      }
+    </ul>
     <div class="lp-cta">
       <a class="lp-btn lp-btn-primary" href={withBase('guides/getting-started/')}>
         Get started
@@ -56,13 +80,19 @@ const install = 'npm create idocs@latest my-docs'
   <div class="lp-wrap lp-stage-wrap">
     <div class="lp-stage">
       <div class="lp-stage-bar">
-        <span class="lp-live"><b>checkout</b></span>
-        <span>{nodes} nodes · {scenarios} scenarios · 2 views</span>
-        <span class="lp-hint">The real thing, not a screenshot. Click a box, or hold Ctrl or ⌘ and scroll to zoom.</span>
+        <span class="lp-live"><b>showcase</b></span>
+        <span>{nodes} nodes · {scenarios} scenarios · {views} views</span>
+        <span class="lp-hint">The real thing, not a screenshot. Click a box, expand a card, switch a view.</span>
       </div>
       <div class="lp-stage-body">
-        <Diagram name="checkout" scenario="place-order" autoplay hash={false} maxHeight={520} />
+        <Diagram name="showcase" scenario="order" autoplay hash={false} maxHeight={560} />
       </div>
+      <ul class="lp-try" aria-label="Things to try in the diagram above">
+        <li><Icon name="lucide:mouse-pointer-click" /><span><b>Click a box</b> for its docs and a picture of what is inside</span></li>
+        <li><Icon name="lucide:maximize-2" /><span><b>Expand</b> a card to see its diagram in place, or <b>open</b> it</span></li>
+        <li><Icon name="lucide:play" /><span><b>Play</b> a scenario as packets, a sequence or a story</span></li>
+        <li><Icon name="lucide:layers" /><span><b>Switch views</b>, hide what is planned, resize the viewer</span></li>
+      </ul>
     </div>
   </div>
 </section>

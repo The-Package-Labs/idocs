@@ -54,9 +54,71 @@ describe('landing page', () => {
     expect(await page.locator('h1').textContent()).toContain('press play')
     await page.waitForSelector('.lp-hero [data-node]')
     expect(await page.locator('.lp-hero [data-node]').count()).toBe(12)
+    expect(await page.locator('.lp-hero .lp-stage-bar').first().textContent()).toContain('showcase')
     await page.waitForSelector('.lp-hero .idocs-packet', { state: 'attached', timeout: 15_000 })
     // A decorative demo must not write into the address bar.
     expect(await page.evaluate(() => location.hash)).toBe('')
+    expect(problems).toEqual([])
+    await close()
+  })
+
+  it('says what the i in idocs stands for', async () => {
+    const { page, close } = await open('/')
+    const words = await page.locator('.lp-iwords .lp-iword').allTextContents()
+    expect(words.map((w) => w.trim())).toEqual([
+      'interactive',
+      'intuitive',
+      'integrated',
+      'impressive',
+    ])
+    // Every one starts with the i of idocs, picked out in the accent colour.
+    expect(await page.locator('.lp-iwords .lp-i').allTextContents()).toEqual(['i', 'i', 'i', 'i'])
+    expect(await page.locator('.lp-iwords-label').textContent()).toBe('the i in idocs')
+    await close()
+  })
+
+  it('shows one diagram that uses the features: zones, statuses, edge kinds, nesting and views', async () => {
+    const { page, problems, close } = await open('/')
+    await page.waitForSelector('.lp-hero [data-node]')
+    const hero = page.locator('.lp-hero')
+    // Zones and frames, and the three statuses.
+    expect(await hero.locator('.idocs-zone').count()).toBeGreaterThanOrEqual(5)
+    for (const status of ['planned', 'legacy', 'optional']) {
+      expect(await hero.locator(`.idocs-node.st-${status}`).count(), status).toBeGreaterThan(0)
+    }
+    // Cards with chips and a "uses" line, and cards that hold a diagram.
+    expect(await hero.locator('.idocs-chips .idocs-chip').count()).toBeGreaterThan(1)
+    expect(await hero.locator('[data-node] .idocs-node-uses').count()).toBeGreaterThan(0)
+    expect(await hero.locator('[data-node="orders"] [data-act="expand"]').count()).toBe(1)
+    // Views, scenarios, and a custom edge kind in the legend.
+    expect(await hero.locator('.idocs-tab').allTextContents()).toEqual([
+      'Overview',
+      'Backend only',
+      'Interfaces',
+    ])
+    expect(await hero.locator('.idocs-chip-btn').allTextContents()).toEqual([
+      'Overview',
+      'Place an order',
+      'Card declined',
+    ])
+    expect(await hero.locator('.idocs-legend').textContent()).toContain('Audit trail')
+    // The overview fits whole, so the camera is not chasing the action.
+    expect(await hero.locator('[aria-label="Fit to view"]').count()).toBe(1)
+    expect(await hero.locator('.idocs-tool[aria-pressed="true"]:has-text("Follow")').count()).toBe(
+      0,
+    )
+    expect(problems).toEqual([])
+    await close()
+  })
+
+  it('lets the reader expand a card in the hero, and play another view', async () => {
+    const { page, problems, close } = await open('/')
+    await page.waitForSelector('.lp-hero [data-node]')
+    await page.click('.lp-hero [data-node="stock"] [data-act="expand"]')
+    await page.waitForSelector('.lp-hero [data-inline][data-node="stock"]')
+    expect(await page.locator('.lp-hero [data-node="stock/api"]').count()).toBe(1)
+    await page.click('.lp-hero .idocs-tab:has-text("Interfaces")')
+    await page.waitForSelector('.lp-hero .idocs-interfaces, .lp-hero table')
     expect(problems).toEqual([])
     await close()
   })
@@ -139,7 +201,7 @@ describe('landing page', () => {
     expect(await page.locator('.lp-term').textContent()).toContain('Unknown icon "strpe"')
     expect(await page.locator('.lp-wall li').count()).toBe(24)
     expect(await page.locator('.lp-wall li svg').count()).toBe(24)
-    expect(await page.locator('.lp-spec a').count()).toBe(9)
+    expect(await page.locator('.lp-spec a').count()).toBe(12)
     await close()
   })
 
@@ -180,6 +242,8 @@ describe('landing page', () => {
 
   it('fits a phone without scrolling sideways', async () => {
     const { page, problems, close } = await open('/', { width: 390, height: 844 })
+    // The diagram loads when it is seen, and on a phone it starts below the fold.
+    await reveal(page, '.lp-stage')
     await page.waitForSelector('.lp-hero [data-node]')
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
