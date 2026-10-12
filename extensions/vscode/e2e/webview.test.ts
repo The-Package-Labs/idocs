@@ -259,7 +259,7 @@ describe('preview webview', () => {
     await h.page.waitForSelector('[data-node="orders"]')
     expect(await h.page.locator('[data-level="0"] [data-node] .idocs-node-inside').count()).toBe(2)
 
-    await h.page.locator('[data-level="0"] [data-node="orders"] .idocs-node-inside').click()
+    await h.page.locator('[data-level="0"] [data-node="orders"] [data-act="open"]').click()
     await h.page.waitForSelector('[data-level="1"] [data-node="stock"]')
     expect(await h.page.locator('.idocs-crumb[aria-current="location"]').textContent()).toContain(
       'Order service',

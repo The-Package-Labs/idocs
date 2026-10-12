@@ -260,6 +260,13 @@ function build(
         didYouMean(n.in, Object.keys(groups)),
       )
     }
+    if (typeof n.diagram === 'object' && n.diagram.expanded && n.diagram.mode === 'open') {
+      warn(
+        '`expanded` has no effect with `mode: open`',
+        ['nodes', id, 'diagram', 'expanded'],
+        'Use `mode: expand` or `mode: both`, or drop `expanded`.',
+      )
+    }
     const docPath = n.doc ?? `nodes/${id}.md`
     const docText = src.readFile?.(docPath)
     if (n.doc && docText === undefined)

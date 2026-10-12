@@ -53,11 +53,21 @@ export const NodeSchema = z.strictObject({
           'View to open first. Defaults to the scenario view, then the first.',
         ),
         scenario: Id.optional().describe('Scenario to select when the diagram opens.'),
+        mode: z
+          .enum(['both', 'expand', 'open'])
+          .optional()
+          .describe(
+            'both (default): the reader can expand it in place or open it. expand: only in place. open: only move into it.',
+          ),
+        expanded: z
+          .boolean()
+          .optional()
+          .describe('Start expanded in place, so the whole inner diagram shows as a group.'),
       }),
     ])
     .optional()
     .describe(
-      'Another diagram (its folder name) that shows the inside of this node. The card gets a "Look inside" button that opens it one level deeper, with a way back.',
+      'Another diagram (its folder name) that shows the inside of this node. The card gets buttons to expand it in place, as a group, or to open it one level deeper, with a way back.',
     ),
 })
 

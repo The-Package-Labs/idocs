@@ -39,9 +39,13 @@ async function open(path = PAGE, width = 1440) {
   return { page, problems, close: () => ctx.close() }
 }
 
-const level = (n: number) => `[data-level="${n}"]`
+const level = (n: number) => `.idocs[data-diagram="nest-shop"] [data-level="${n}"]`
 const card = (n: number, id: string) => `${level(n)} [data-node="${id}"]`
-const strip = (n: number, id: string) => `${card(n, id)} .idocs-node-inside`
+/** The strip's two actions: show it in place, move into it. */
+const strip = (n: number, id: string) => `${card(n, id)} [data-act="open"]`
+const expand = (n: number, id: string) => `${card(n, id)} [data-act="expand"]`
+const group = (path: string) =>
+  `.idocs[data-diagram="nest-shop"] [data-level="0"] [data-inline][data-node="${path}"]`
 const shown = (page: Page) =>
   page.locator('.idocs-level:not([hidden])').first().getAttribute('data-level')
 const hash = (page: Page) => page.evaluate(() => location.hash)
@@ -190,7 +194,7 @@ describe('the drawer', () => {
     const { page, problems, close } = await open()
     await page.locator(card(0, 'payments')).focus()
     await page.keyboard.press('Enter')
-    const open_ = page.locator('.idocs-drawer .idocs-open')
+    const open_ = page.locator('.idocs-drawer .idocs-open', { hasText: 'Open' })
     await open_.waitFor()
     expect(await open_.textContent()).toContain('Payments: 6 nodes, 2 scenarios')
     await open_.focus()
@@ -277,6 +281,203 @@ describe('links', () => {
     await page.waitForTimeout(300)
     expect(await shown(page)).toBe('0')
     expect(problems).toEqual([])
+    await close()
+  })
+})
+
+describe('expanding in place', () => {
+  const frames = (page: Page) =>
+    page
+      .locator('.idocs[data-diagram="nest-shop"] [data-level="0"] [data-inline]')
+      .evaluateAll((els) => els.map((e) => e.getAttribute('data-node')))
+
+  it('turns a card into a group holding the whole inner diagram, and folds it back', async () => {
+    const { page, problems, close } = await open()
+    const before = await where(page, card(0, 'orders'))
+    expect(await page.locator(expand(0, 'orders')).count()).toBe(1)
+
+    await page.click(expand(0, 'orders'))
+    await page.waitForSelector(group('orders'))
+    expect(await page.locator(card(0, 'orders')).count()).toBe(1)
+    expect(
+      await page
+        .locator(`${group('orders')} .idocs-node-title`)
+        .first()
+        .textContent(),
+    ).toBe('Order service')
+    for (const id of ['api', 'rules', 'stock', 'db', 'outbox']) {
+      expect(await page.locator(card(0, `orders/${id}`)).count(), id).toBe(1)
+    }
+    await page.waitForTimeout(500)
+    const grown = await where(page, group('orders'))
+    expect(grown[2]).toBeGreaterThan(before[2]! * 2)
+
+    // Nothing else sits under it, and nothing is faded just because the pointer was on the card.
+    const rects = await page
+      .locator(
+        '.idocs[data-diagram="nest-shop"] [data-level="0"] .idocs-world > .idocs-node, .idocs[data-diagram="nest-shop"] [data-level="0"] .idocs-world > .idocs-inline',
+      )
+      .evaluateAll((els) =>
+        els.map((e) => {
+          const r = e.getBoundingClientRect()
+          return [r.left, r.top, r.right, r.bottom]
+        }),
+      )
+    for (let i = 0; i < rects.length; i++) {
+      for (let j = i + 1; j < rects.length; j++) {
+        const [a, b] = [rects[i]!, rects[j]!]
+        expect(a[0]! < b[2]! && a[2]! > b[0]! && a[1]! < b[3]! && a[3]! > b[1]!).toBe(false)
+      }
+    }
+    expect(
+      await page.locator('.idocs[data-diagram="nest-shop"] [data-level="0"] .is-dim').count(),
+    ).toBe(0)
+
+    await page.getByRole('button', { name: 'Collapse Order service' }).click()
+    await page.waitForSelector(`${card(0, 'orders')}:not([data-inline])`)
+    expect(await frames(page)).toEqual([])
+    expect(problems).toEqual([])
+    await close()
+  })
+
+  it('goes as deep as the diagrams do', async () => {
+    const { page, close } = await open()
+    await page.click(expand(0, 'orders'))
+    await page.waitForSelector(group('orders'))
+    await page.click(expand(0, 'orders/stock'))
+    await page.waitForSelector(group('orders/stock'))
+    expect(await frames(page)).toEqual(['orders', 'orders/stock'])
+    expect(await page.locator(card(0, 'orders/stock/warehouse')).count()).toBe(1)
+    // Folding the outer one keeps what was open inside it for next time. The camera is on the
+    // inner group, so the outer header is outside the frame: use the drawer.
+    await page
+      .locator(`${card(0, 'orders')} > .idocs-inline-head .idocs-inline-title`)
+      .evaluate((el) => (el as HTMLElement).click())
+    await page.locator('.idocs-drawer .idocs-open', { hasText: 'Collapse' }).click()
+    await page.waitForSelector(`${card(0, 'orders')}:not([data-inline])`)
+    await page.click(expand(0, 'orders'))
+    await page.waitForSelector(group('orders/stock'))
+    await close()
+  })
+
+  it('opens the drawer for a node inside a group, with its own connections', async () => {
+    const { page, close } = await open()
+    await page.click(expand(0, 'orders'))
+    await page.waitForSelector(group('orders'))
+    await page.click(card(0, 'orders/api'))
+    await page.waitForSelector('.idocs-drawer')
+    expect(await page.locator('.idocs-drawer .idocs-node-title').textContent()).toBe('Orders API')
+    expect(await page.locator('.idocs-drawer-links li').count()).toBe(4)
+    // Its neighbours in the inner diagram light up; the outer diagram is left alone.
+    expect(
+      await page
+        .locator(
+          '.idocs[data-diagram="nest-shop"] [data-level="0"] .idocs-world > .idocs-node.is-dim',
+        )
+        .count(),
+    ).toBe(0)
+
+    await page.keyboard.press('Escape')
+    await page.click(`${group('orders')} .idocs-inline-title`)
+    await page.waitForSelector('.idocs-drawer')
+    expect(await page.locator('.idocs-drawer .idocs-open b').allTextContents()).toEqual([
+      'Collapse',
+      'Open',
+    ])
+    await close()
+  })
+
+  it('offers both ways in the drawer, and folds from there', async () => {
+    const { page, close } = await open()
+    await page.locator(card(0, 'orders')).focus()
+    await page.keyboard.press('Enter')
+    expect(await page.locator('.idocs-drawer .idocs-open b').allTextContents()).toEqual([
+      'Expand here',
+      'Open',
+    ])
+    await page.locator('.idocs-drawer .idocs-open', { hasText: 'Expand here' }).click()
+    await page.waitForSelector(group('orders'))
+    await close()
+  })
+
+  it('starts expanded when the author said so, and offers only what the author allowed', async () => {
+    const { page, problems, close } = await open()
+    await page.locator('.idocs').nth(1).scrollIntoViewIfNeeded()
+    const second = page.locator('.idocs[data-diagram="nest-inline"]')
+    await second.locator('[data-node="stock"][data-inline]').waitFor()
+    expect(await second.locator('[data-node="stock/api"]').count()).toBe(1)
+    // Open only: no way to expand, and the strip says what it does.
+    expect(await second.locator('[data-node="reports"] [data-act]').allTextContents()).toEqual([
+      'Look inside›',
+    ])
+    expect(await second.locator('.idocs-drawer').count()).toBe(0)
+    expect(problems).toEqual([])
+    await close()
+  })
+
+  it('keeps what is expanded in the link, and restores it', async () => {
+    const { page, close } = await open()
+    await page.click(expand(0, 'orders'))
+    await page.waitForSelector(group('orders'))
+    await page.waitForFunction(() => location.hash.includes('nest-shop+=orders'))
+    await page.getByRole('button', { name: 'Collapse Order service' }).click()
+    await page.waitForFunction(() => !location.hash.includes('nest-shop+'))
+    await close()
+
+    const again = await open(`${PAGE}#nest-shop+=orders,orders/stock`)
+    await again.page.waitForSelector(group('orders/stock'))
+    expect(await frames(again.page)).toEqual(['orders', 'orders/stock'])
+    await again.close()
+
+    // `none` is how a link says "fold what the author expanded".
+    const none = await open(`${PAGE}#nest-inline+=none`)
+    await none.page.locator('.idocs').nth(1).scrollIntoViewIfNeeded()
+    await none.page.waitForSelector('.idocs[data-diagram="nest-inline"] [data-node="stock"]')
+    expect(
+      await none.page.locator('.idocs[data-diagram="nest-inline"] [data-inline]').count(),
+    ).toBe(0)
+    await none.close()
+  })
+
+  it('opens a node from inside a group, with every level on the way in the trail', async () => {
+    const { page, problems, close } = await open(`${PAGE}#nest-shop=place-order.3`)
+    await page.waitForSelector('.idocs-step.is-active')
+    await page.click(expand(0, 'orders'))
+    await page.waitForSelector(group('orders'))
+    await page.click(strip(0, 'orders/stock'))
+    await page.waitForSelector(`${level(2)}:not([hidden]) [data-node="warehouse"]`)
+    expect(await crumbs(page)).toEqual(['Online shop', 'Order service', 'Stock'])
+    expect(await hash(page)).toContain('nest-shop~=orders/stock')
+
+    await page.click('.idocs-trail-back')
+    await page.waitForSelector(`${level(1)}:not([hidden])`)
+    await page.click('.idocs-trail-back')
+    await page.waitForSelector(`${level(0)}:not([hidden])`)
+    // The parent is as it was left: the group is still open, and so is the scenario.
+    expect(await page.locator(group('orders')).count()).toBe(1)
+    expect(
+      await page.locator(`${level(0)} .idocs-step.is-active .idocs-step-n`).textContent(),
+    ).toBe('3')
+    expect(problems).toEqual([])
+    await close()
+  })
+
+  it('keeps the outer scenario working with a node expanded: the packets arrive at the group', async () => {
+    const { page, close } = await open()
+    await page.click(expand(0, 'orders'))
+    await page.waitForSelector(group('orders'))
+    await page.click(`${level(0)} .idocs-chip-btn:has-text("Place an order")`)
+    await page.waitForSelector(`${level(0)} .idocs-packet`, { state: 'attached' })
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector(
+            '.idocs[data-diagram="nest-shop"] [data-level="0"] [data-inline][data-node="orders"]',
+          )
+          ?.classList.contains('is-visited'),
+      null,
+      { timeout: 20_000 },
+    )
     await close()
   })
 })

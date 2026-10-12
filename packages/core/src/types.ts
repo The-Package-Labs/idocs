@@ -30,6 +30,10 @@ export interface NodeDiagram {
   name: string
   view?: string
   scenario?: string
+  /** How a reader can get at it: shown in place (`expand`), moved into (`open`), or either. */
+  mode?: 'both' | 'expand' | 'open'
+  /** Starts shown in place. */
+  expanded?: boolean
 }
 
 export interface CompiledNode {

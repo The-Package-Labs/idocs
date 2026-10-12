@@ -1,8 +1,9 @@
 # yaml-language-server: $schema=../diagram.schema.json
 title: Online shop
 description: |
-  The shop at a glance. Cards marked **Look inside** hold a whole diagram of their own:
-  open one, play its scenarios, and use **Back** (or the trail above it) to return here.
+  The shop at a glance. Cards marked **Expand** and **Open** hold a whole diagram of their
+  own: expand one to see it right here as a group, or open it to move into it and play its
+  scenarios. **Back** (or the trail above) returns here.
 
 nodes:
   browser: { kind: client, icon: react, title: Shopper browser }
@@ -38,7 +39,7 @@ scenarios:
     title: Place an order
     summary: |
       The shopper checks out. The order service reserves stock and asks payments to charge the
-      card; **look inside** either one to see what happens there.
+      card; **expand** or **open** either one to see what happens there.
     steps:
       - browser -> gateway: POST /orders
       - gateway -> orders: create order

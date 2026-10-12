@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=../diagram.schema.json
+title: Warehouse
+description: |
+  The stock service starts **expanded**: its whole diagram is a group right here. The report
+  can only be **opened**, because its author did not want it shown in place.
+
+nodes:
+  scanner: { kind: client, icon: lucide:scan-barcode, title: Hand scanner }
+  stock:
+    kind: service
+    icon: go
+    title: Stock service
+    sub: starts expanded
+    diagram: { name: nest-stock, expanded: true }
+  reports:
+    kind: worker
+    icon: lucide:file-bar-chart
+    title: Nightly report
+    sub: open only
+    diagram: { name: nest-orders, mode: open }
+
+edges:
+  - scanner -> stock: scan
+  - stock -> reports: { kind: queue, label: counts }
+
+views:
+  overview: { direction: RIGHT }
+
+scenarios:
+  count:
+    title: Count a shelf
+    steps:
+      - scanner -> stock: scan item
+      - at stock:
+          label: hold 1 for 15 min
+          note: What happens inside is its own scenario. Open the diagram to play it.
+      - stock -> reports: { label: counts, kind: event }

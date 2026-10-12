@@ -2,7 +2,7 @@
 
 ## 0.3.0
 
-- Nested diagrams. A node with `diagram: <name>` shows a **Look inside** strip in the preview, which opens that diagram in place with a trail back, and the preview follows edits to the diagrams it opens.
+- Nested diagrams. A node with `diagram: <name>` shows **Expand** (the whole inner diagram in place, as a group) and **Open** (move into it, with a trail back) in the preview, and the preview follows edits to the diagrams it holds.
 - Problems for nodes that open a diagram that does not exist, or a view or scenario it does not have, or that lead back to themselves, as `idocs check` reports them.
 - Completion offers the other diagrams of the project after `diagram:`.
 

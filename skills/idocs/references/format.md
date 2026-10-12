@@ -36,7 +36,7 @@ Top-level keys: `title` (required), `description`, `nodes` (required), `groups`,
 | `links` | `- { label: Runbook, url: https://... }` |
 | `refs` | Source files or URLs the node is based on. `idocs check` warns when a path no longer exists. `src/api.ts`, `src/api.ts:40` and `src/api.ts#L40` all work. |
 | `tags` | Free-form tags. |
-| `diagram` | Name of another diagram (its folder under `diagrams/`) that shows the inside of this node: `diagram: payments`. The card gets a "Look inside" strip that opens it one level deeper, with a trail and Back button. Long form: `diagram: { name: payments, view: refunds, scenario: pay }`. See "Nested diagrams" below. |
+| `diagram` | Name of another diagram (its folder under `diagrams/`) that shows the inside of this node: `diagram: payments`. The card gets **Expand** (show it in place, as a group around the whole inner diagram) and **Open** (move into it, with a trail and Back button). Long form: `diagram: { name: payments, view: refunds, scenario: pay, mode: both, expanded: false }`. See "Nested diagrams" below. |
 
 Node kinds: `client user ui external service gateway worker container function database cache storage queue agent network vm auth monitor`. Add or override your own with a top-level `kinds:` map: `ledger: { icon: lucide:book-open, family: amber }`.
 
@@ -117,13 +117,16 @@ nodes:
   payments: { kind: service, title: Payments, diagram: { name: payments, scenario: pay } }
 ```
 
-Readers open the card, land in that diagram with its own views, scenarios and player, and use **Back**, the trail above it, or Esc to return to the parent exactly as they left it. Diagrams can nest as deep as the system does.
+Readers can **expand** the card, which shows the whole inner diagram in place as a group (and nodes inside can be expanded too), or **open** it, which moves into that diagram with its own views, scenarios and player; **Back**, the trail above it, or Esc return to the parent exactly as they left it. Diagrams can nest as deep as the system does.
+
+- `mode: both` (default), `expand` or `open` limits which of the two the reader gets. `expanded: true` starts the node expanded, so a page shows the whole picture at once.
+- An expanded diagram is a preview of one view (the one named, else the first). Its scenarios are played by opening it.
 
 - Nest when the inside of a node is a story of its own. If it only needs a paragraph, use a node doc (`nodes/<id>.md`); if it only needs a different slice of the same model, use a view.
 - Several nodes may open the same diagram. A diagram cannot be inside itself: a node that opens its own diagram, or diagrams that open each other in a circle, are errors.
 - `idocs check` verifies the name, `view` and `scenario` across diagrams, at the line that wrote them. `idocs list` shows what opens what.
 - Nothing else is needed on the page: a compiled diagram carries the diagrams it can open, so `<Diagram name="shop" />` just works.
-- Links: `#shop~=orders/stock` opens `orders` then `stock`; each level's scenario is `#shop/orders=create.2`.
+- Links: `#shop~=orders/stock` opens `orders` then `stock`; `#shop+=orders,orders/stock` has those expanded; each level's scenario is `#shop/orders=create.2`.
 
 ## Pages
 

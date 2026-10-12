@@ -43,7 +43,7 @@ const labels = (c: Completion | undefined) => c?.items.map((i) => i.label) ?? []
 describe('diagram', () => {
   it('is a node key, documented', () => {
     const c = run('nodes:\n  api:\n    |')
-    expect(c?.items.find((i) => i.label === 'diagram')?.documentation).toMatch(/Look inside/)
+    expect(c?.items.find((i) => i.label === 'diagram')?.documentation).toMatch(/expand it in place/)
   })
 
   it('offers the other diagrams of the project after it', () => {

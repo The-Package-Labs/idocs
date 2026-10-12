@@ -54,6 +54,7 @@ These are found when the diagrams are checked together, and point at the line th
 | `Diagram "y" has no view "v"` | The long form's `view:` is not a view of that diagram. The hint lists its views. |
 | `Diagram "y" has no scenario "s"` | The long form's `scenario:` is not a scenario of that diagram. The hint lists them. |
 | `Scenario "s" plays on view "a", not "b"` | The long form names both, and they disagree. Drop `view:` and the diagram opens on the scenario's own view. |
+| warning `` `expanded` has no effect with `mode: open` `` | The node can only be opened, so it cannot start expanded. Use `mode: expand` or `mode: both`, or drop `expanded`. |
 | `Node "x" opens its own diagram "d"` | A diagram cannot be inside itself. |
 | `Node "x" opens "b", which leads back to "a"` | Diagrams open each other in a circle. The hint shows it, as `a → b → a`; break it at one node. |
 

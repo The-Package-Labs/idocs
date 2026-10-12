@@ -152,7 +152,9 @@ export function Canvas({
           e.target === e.currentTarget ||
           (e.target as Element).closest('.idocs-world') === worldRef.current
         ) {
-          if (!(e.target as Element).closest('.idocs-node')) onBackgroundClick?.()
+          // A card, or the header of a node shown in place, is something to act on, not background.
+          if (!(e.target as Element).closest('.idocs-node, .idocs-inline-head'))
+            onBackgroundClick?.()
         }
       }}
     >

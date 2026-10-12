@@ -1,21 +1,34 @@
 import type { CompiledDiagram, CompiledView } from '@the-package-labs/idocs-core'
 import { useEffect, useRef } from 'react'
 import { IconTile } from './Icon'
-import { insideSummary, LayersIcon, type NodeInside } from './NodeCard'
+import { CollapseIcon, ExpandIcon, insideSummary, LayersIcon, type NodeInside } from './NodeCard'
 import { cx } from './util'
 
 interface Props {
   diagram: CompiledDiagram
   view: CompiledView
   nodeId: string
-  /** Set when the node holds a diagram the reader can open. */
+  /** Set when the node holds a diagram the reader can expand in place or move into. */
   inside?: NodeInside
+  /** Whether it is shown in place right now. */
+  expanded?: boolean
+  onExpand?: (id: string) => void
   onOpen?: (id: string) => void
   onClose: () => void
   onSelect: (id: string) => void
 }
 
-export function Drawer({ diagram, view, nodeId, inside, onOpen, onClose, onSelect }: Props) {
+export function Drawer({
+  diagram,
+  view,
+  nodeId,
+  inside,
+  expanded,
+  onExpand,
+  onOpen,
+  onClose,
+  onSelect,
+}: Props) {
   const node = diagram.nodes[nodeId]!
   const closeRef = useRef<HTMLButtonElement>(null)
 
@@ -72,19 +85,36 @@ export function Drawer({ diagram, view, nodeId, inside, onOpen, onClose, onSelec
         </button>
       </div>
       <div className="idocs-drawer-body">
-        {inside && onOpen && (
-          <button type="button" className="idocs-open" onClick={() => onOpen(nodeId)}>
-            <span className="idocs-open-icon">
-              <LayersIcon />
-            </span>
-            <span className="idocs-open-text">
-              <b>Look inside</b>
-              <span>{insideSummary(inside)}</span>
-            </span>
-            <span className="idocs-open-go" aria-hidden="true">
-              ›
-            </span>
-          </button>
+        {inside && ((inside.expand && onExpand) || (inside.open && onOpen)) && (
+          <div className="idocs-actions">
+            {inside.expand && onExpand && (
+              <button type="button" className="idocs-open" onClick={() => onExpand(nodeId)}>
+                <span className="idocs-open-icon">
+                  {expanded ? <CollapseIcon /> : <ExpandIcon />}
+                </span>
+                <span className="idocs-open-text">
+                  <b>{expanded ? 'Collapse' : 'Expand here'}</b>
+                  <span>
+                    {expanded ? 'Fold it back into one card' : 'Show it in place, as a group'}
+                  </span>
+                </span>
+              </button>
+            )}
+            {inside.open && onOpen && (
+              <button type="button" className="idocs-open" onClick={() => onOpen(nodeId)}>
+                <span className="idocs-open-icon">
+                  <LayersIcon />
+                </span>
+                <span className="idocs-open-text">
+                  <b>{inside.expand ? 'Open' : 'Look inside'}</b>
+                  <span>{insideSummary(inside)}</span>
+                </span>
+                <span className="idocs-open-go" aria-hidden="true">
+                  ›
+                </span>
+              </button>
+            )}
+          </div>
         )}
         {node.docHtml ? (
           <div className="idocs-md" dangerouslySetInnerHTML={{ __html: node.docHtml }} />

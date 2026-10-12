@@ -60,7 +60,7 @@ Ids (the keys of `nodes`, `groups`, `views`, `scenarios`, `kinds` and `edgeKinds
 | `links` | list of `{ label, url }` | | Shown in the drawer. |
 | `refs` | list of strings | | Source files or URLs the node is based on. Stale paths produce a warning. |
 | `tags` | list of strings | | Free-form tags. |
-| `diagram` | string, or `{ name, view?, scenario? }` | | Another diagram that shows the inside of this node. The card gets a **Look inside** strip. See [nested diagrams](../../format/nested-diagrams/). |
+| `diagram` | string, or `{ name, view?, scenario?, mode?, expanded? }` | | Another diagram that shows the inside of this node. The card gets **Expand** and **Open**; `mode` limits it to one (`expand` or `open`) and `expanded: true` starts it expanded. See [nested diagrams](../../format/nested-diagrams/). |
 
 ## Group
 

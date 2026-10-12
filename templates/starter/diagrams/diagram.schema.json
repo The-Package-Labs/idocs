@@ -314,7 +314,7 @@
                 }
               },
               "diagram": {
-                "description": "Another diagram (its folder name) that shows the inside of this node. The card gets a \"Look inside\" button that opens it one level deeper, with a way back.",
+                "description": "Another diagram (its folder name) that shows the inside of this node. The card gets buttons to expand it in place, as a group, or to open it one level deeper, with a way back.",
                 "anyOf": [
                   {
                     "type": "string",
@@ -337,6 +337,19 @@
                         "description": "Scenario to select when the diagram opens.",
                         "type": "string",
                         "pattern": "^[A-Za-z0-9_.-]+$"
+                      },
+                      "mode": {
+                        "description": "both (default): the reader can expand it in place or open it. expand: only in place. open: only move into it.",
+                        "type": "string",
+                        "enum": [
+                          "both",
+                          "expand",
+                          "open"
+                        ]
+                      },
+                      "expanded": {
+                        "description": "Start expanded in place, so the whole inner diagram shows as a group.",
+                        "type": "boolean"
                       }
                     },
                     "required": [

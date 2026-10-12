@@ -2,18 +2,27 @@ import {
   buildTimeline,
   type CompiledDiagram,
   type CompiledNode,
+  type CompiledView,
   DEFAULT_NODE_WIDTH,
+  type Diagrams,
+  defaultExpanded,
   type Frame,
   frameAt,
   type Layout,
+  measurable,
+  type NestedLayout,
   type Rect,
+  rectOfPath,
 } from '@the-package-labs/idocs-core'
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Canvas, type Focus } from './Canvas'
 import { Drawer } from './Drawer'
 import { EdgeLayer, type EdgeState } from './EdgeLayer'
+import { focusOf } from './focus'
 import { readHashValue, readScenarioHash, trailKey, writeHash } from './hash'
+import { InlineDiagram } from './InlineDiagram'
 import { InterfaceTable } from './InterfaceTable'
+import { insideOf } from './inside'
 import { Legend } from './Legend'
 import { NodeCard, type NodeCardState, type NodeInside } from './NodeCard'
 import { Packets } from './Packets'
@@ -137,11 +146,23 @@ export function DiagramView(props: DiagramViewProps) {
     rootRef.current?.style.setProperty('--idocs-dive-y', `${Math.round(point.y)}px`)
   }
 
-  const open = (level: number, nodeId: string) => {
-    const ref = chain[level]?.diagram.nodes[nodeId]?.diagram
-    if (!ref || !diagrams?.[ref.name]) return
+  /**
+   * Move into the diagram a node holds. `path` is the node's id, or ids joined with `/` for one
+   * inside nodes shown in place (`orders/stock`): the levels in between are opened too, so the
+   * trail still says how the reader got there.
+   */
+  const open = (level: number, path: string) => {
+    const steps: Opened[] = []
+    let here = chain[level]?.diagram
+    for (const id of path.split('/')) {
+      const ref = here?.nodes[id]?.diagram
+      const next = ref && diagrams?.[ref.name]
+      if (!ref || !next) return
+      steps.push({ node: id, diagram: ref.name })
+      here = next
+    }
     const levelEl = rootRef.current?.querySelector<HTMLElement>(`[data-level="${level}"]`)
-    const card = levelEl?.querySelector<HTMLElement>(`[data-node="${nodeId}"]`)
+    const card = levelEl?.querySelector<HTMLElement>(`[data-node="${path}"]`)
     if (levelEl && card) {
       const l = levelEl.getBoundingClientRect()
       const c = card.getBoundingClientRect()
@@ -149,15 +170,18 @@ export function DiagramView(props: DiagramViewProps) {
     }
     aim(origins.current[level])
     refocus.current = !!document.activeElement?.matches?.(':focus-visible')
-    setOpened((prev) => [...prev.slice(0, level), { node: nodeId, diagram: ref.name }])
+    setOpened((prev) => [...prev.slice(0, level), ...steps])
     setReturned(null)
-    setMoving({ level: level + 1, dir: 'in' })
+    setMoving({ level: level + steps.length, dir: 'in' })
   }
 
   /** Land on `level`, closing every level below it. */
   const goTo = (level: number) => {
     if (level < 0 || level >= depth) return
-    for (let l = level + 1; l <= depth; l++) writeHash(hashKeyAt(l), null)
+    for (let l = level + 1; l <= depth; l++) {
+      writeHash(hashKeyAt(l), null)
+      writeHash(`${hashKeyAt(l)}+`, null)
+    }
     aim(origins.current[level])
     refocus.current = !!document.activeElement?.matches?.(':focus-visible')
     const via = opened[level]
@@ -189,11 +213,14 @@ export function DiagramView(props: DiagramViewProps) {
   useEffect(() => {
     if (!returned || !refocus.current) return
     refocus.current = false
-    rootRef.current
-      ?.querySelector<HTMLElement>(
-        `[data-level="${returned.level}"] [data-node="${returned.node}"]`,
-      )
-      ?.focus({ preventScroll: true })
+    const there = rootRef.current?.querySelector<HTMLElement>(
+      `[data-level="${returned.level}"] [data-node="${returned.node}"]`,
+    )
+    // A node shown in place is a group: its name is the thing to land on.
+    const target = there?.hasAttribute('data-inline')
+      ? there.querySelector<HTMLElement>('.idocs-inline-title')
+      : there
+    target?.focus({ preventScroll: true })
   }, [returned])
 
   useEffect(() => {
@@ -219,7 +246,7 @@ export function DiagramView(props: DiagramViewProps) {
   ]
 
   return (
-    <div ref={rootRef} className={cx('idocs', className)}>
+    <div ref={rootRef} className={cx('idocs', className)} data-diagram={diagram.name}>
       {depth > 0 && <Trail ref={backRef} crumbs={crumbs} onJump={goTo} onBack={back} />}
       {chain.map(({ diagram: d, via: node }, level) => {
         const top = level === depth
@@ -293,8 +320,11 @@ interface LevelProps
   onToggleFullscreen?: () => void
   /** The element Escape is scoped to, so a page with other widgets is left alone. */
   within: React.RefObject<HTMLElement | null>
-  /** Open the diagram held by a node. Absent when nothing can be opened from here. */
-  onOpen?: (nodeId: string) => void
+  /**
+   * Move into the diagram held by a node, named by its path (`orders`, or `orders/stock` for one
+   * inside a node shown in place). Absent when nothing can be opened from here.
+   */
+  onOpen?: (path: string) => void
   /** Present on every level but the first: go up one. */
   onBack?: () => void
   /** The node the reader has just come back from. */
@@ -359,7 +389,19 @@ function Level({
   // null means automatic: follow the action when the diagram is too big to read at once.
   const [follow, setFollow] = useState<boolean | null>(null)
 
-  const { layout, error, measureRef } = useLayout(diagram, view.id, active)
+  // Nodes shown in place, as paths: `orders`, and `orders/stock` inside it. The author may have
+  // asked for some to start that way.
+  const [expanded, setExpanded] = useState<string[]>(() => defaultExpanded(diagram, diagrams ?? {}))
+  const expandedSet = useMemo(() => new Set(expanded), [expanded])
+  const reach: Diagrams = diagrams ?? NO_DIAGRAMS
+
+  const { layout, nested, generation, error, measureRef } = useLayout(
+    diagram,
+    view.id,
+    active,
+    expandedSet,
+    reach,
+  )
 
   const timeline = useMemo(() => {
     if (!layout || !scenario) return null
@@ -435,6 +477,21 @@ function Level({
     )
   }, [hash, hashKey, scenarioId, stepIndex, player.playing])
 
+  // What is shown in place is part of the link too: #<diagram>+=orders,orders/stock. It is only
+  // written when it differs from what the author started with, and `none` says "all folded".
+  const startedWith = useRef(expanded).current
+  useEffect(() => {
+    if (!hash) return
+    const value = readHashValue(`${hashKey}+`)
+    if (value) setExpanded(value === 'none' ? [] : value.split(','))
+  }, [hash, hashKey])
+  useEffect(() => {
+    if (!hash) return
+    const same =
+      expanded.length === startedWith.length && expanded.every((p) => startedWith.includes(p))
+    writeHash(`${hashKey}+`, same ? null : expanded.join(',') || 'none')
+  }, [hash, hashKey, expanded, startedWith])
+
   // Whatever was playing waits where it is until the reader comes back.
   const pausePlayer = player.pause
   useEffect(() => {
@@ -457,30 +514,41 @@ function Level({
 
   const onHoverNode = useCallback((id: string | null) => setHover(id ? { node: id } : {}), [])
   const onHoverEdge = useCallback((id: string | null) => setHover(id ? { edge: id } : {}), [])
+  // A path with a `/` names a node inside one shown in place; an editor only knows the first level.
   const onSelect = useCallback(
     (id: string) => {
-      onNodeOpen?.(id)
-      if (onNodeSelect) onNodeSelect(id)
-      else setSelected((cur) => (cur === id ? null : id))
+      const top = !id.includes('/')
+      if (top) onNodeOpen?.(id)
+      if (onNodeSelect) {
+        if (top) onNodeSelect(id)
+      } else setSelected((cur) => (cur === id ? null : id))
     },
     [onNodeSelect, onNodeOpen],
   )
-  const select = useCallback((id: string) => setSelected(id), [])
   const closeDrawer = useCallback(() => setSelected(null), [])
 
-  // Nodes that hold a diagram the page can reach, with what to say about it before it is opened.
+  // Show a node's diagram in place, or fold it back. The camera then moves to it once the new
+  // layout is there: `after` is the layout the reader was looking at when they asked.
+  const [reveal, setReveal] = useState<{ path: string; after: number } | null>(null)
+  const generationNow = useRef(generation)
+  generationNow.current = generation
+  const toggleExpand = useCallback((path: string) => {
+    // The card under the pointer is about to be replaced and will never say the pointer left it.
+    setHover({})
+    setExpanded((cur) => (cur.includes(path) ? cur.filter((p) => p !== path) : [...cur, path]))
+    // A node that is folded away cannot stay selected.
+    setSelected((cur) => (cur?.startsWith(`${path}/`) ? null : cur))
+    setReveal({ path, after: generationNow.current })
+  }, [])
+  const openPath = useCallback((path: string) => onOpen?.(path), [onOpen])
+
+  // What a reader may do with the diagram a node holds, said on the card before they do it.
   const canOpen = !!onOpen
-  const insideOf = useMemo(() => {
+  const insides = useMemo(() => {
     const out: Record<string, NodeInside> = {}
-    if (!canOpen || !diagrams) return out
     for (const id of view.nodeIds) {
-      const target = diagrams[diagram.nodes[id]!.diagram?.name ?? '']
-      if (target)
-        out[id] = {
-          title: target.title,
-          nodes: Object.keys(target.nodes).length,
-          scenarios: target.scenarios.length,
-        }
+      const inside = insideOf(diagram.nodes[id]!, diagrams, canOpen)
+      if (inside) out[id] = inside
     }
     return out
   }, [diagram, diagrams, view, canOpen])
@@ -490,33 +558,13 @@ function Level({
   const outside =
     !scenarioActive && highlightNode && view.nodeIds.includes(highlightNode) ? highlightNode : null
 
-  // Which nodes and edges the pointer (or the open drawer) is pointing at.
+  // Which nodes and edges the pointer (or the open drawer) is pointing at. A node inside one shown
+  // in place stays out of it: the outer diagram is not about it.
+  const staying = selected && !selected.includes('/') ? selected : outside
   const focus = useMemo(() => {
     if (scenarioActive && player.playing) return null
-    const nodeId = hover.node ?? (hover.edge ? undefined : (selected ?? outside ?? undefined))
-    if (!nodeId && !hover.edge) return null
-    const nodes = new Set<string>()
-    const edges = new Set<string>()
-    if (hover.edge) {
-      const e = diagram.edges[hover.edge]
-      if (e) {
-        edges.add(e.id)
-        nodes.add(e.from)
-        nodes.add(e.to)
-      }
-    } else if (nodeId) {
-      nodes.add(nodeId)
-      for (const id of view.edgeIds) {
-        const e = diagram.edges[id]!
-        if (e.from === nodeId || e.to === nodeId) {
-          edges.add(id)
-          nodes.add(e.from)
-          nodes.add(e.to)
-        }
-      }
-    }
-    return { nodes, edges }
-  }, [hover, selected, outside, scenarioActive, player.playing, diagram, view])
+    return focusOf(diagram, view, hover, staying)
+  }, [hover, staying, scenarioActive, player.playing, diagram, view])
 
   const activeKey = frame?.activeEdges.join() ?? ''
   const trailKey = frame?.trailEdges.join() ?? ''
@@ -568,7 +616,7 @@ function Level({
   )
 
   const following = follow ?? (!!layout && (layout.width > 1500 || layout.height > 950))
-  const camera = useMemo<Focus | null>(() => {
+  const followCamera = useMemo<Focus | null>(() => {
     if (!following || !layout || !scenario || !timeline || mode !== 'flow') return null
     if (stepIndex < 0)
       return {
@@ -596,7 +644,19 @@ function Level({
       rect: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 },
     }
   }, [following, layout, scenario, timeline, stepIndex, mode])
+  const revealCamera = useMemo<Focus | null>(() => {
+    if (!reveal || !nested || generation <= reveal.after) return null
+    const rect = rectOfPath(nested, reveal.path)
+    return rect ? { key: `reveal:${reveal.path}:${reveal.after}`, rect } : null
+  }, [reveal, nested, generation])
+  const camera = revealCamera ?? followCamera
   const stopFollowing = useCallback(() => setFollow(false), [])
+
+  // The node the drawer is about: at the top, or inside a node shown in place.
+  const target = useMemo(
+    () => resolvePath(selected, diagram, view, nested, reach),
+    [selected, diagram, view, nested, reach],
+  )
 
   const stateOf = useCallback((id: string) => edgeStates[id] ?? EMPTY, [edgeStates])
   const presentation = scenario ? mode : 'flow'
@@ -723,15 +783,18 @@ function Level({
           overlay={
             active &&
             selected &&
+            target &&
             !onNodeSelect && (
               <Drawer
-                diagram={diagram}
-                view={view}
-                nodeId={selected}
-                inside={insideOf[selected]}
-                onOpen={onOpen}
+                diagram={target.diagram}
+                view={target.view}
+                nodeId={target.id}
+                inside={insideOf(target.diagram.nodes[target.id]!, reach, canOpen)}
+                expanded={expandedSet.has(selected)}
+                onExpand={() => toggleExpand(selected)}
+                onOpen={() => openPath(selected)}
                 onClose={closeDrawer}
-                onSelect={select}
+                onSelect={(id) => setSelected(`${target.prefix}${id}`)}
               />
             )
           }
@@ -745,11 +808,16 @@ function Level({
             stateOf={stateOf}
             edgeStates={edgeStates}
             register={register}
-            insideOf={insideOf}
+            nested={nested}
+            diagrams={reach}
+            insides={insides}
+            selected={selected}
+            hidePlanned={hidePlanned}
             onHoverNode={onHoverNode}
             onHoverEdge={onHoverEdge}
             onSelect={onSelect}
-            onOpen={onOpen}
+            onToggle={toggleExpand}
+            onOpen={canOpen ? openPath : undefined}
           />
           {frame && scenarioActive && <Packets frame={frame} layout={layout} paths={paths} />}
         </Canvas>
@@ -787,18 +855,16 @@ function Level({
       )}
 
       <div className="idocs-measure" ref={measureRef} aria-hidden="true">
-        {view.nodeIds.map((id) => {
-          const n = diagram.nodes[id]!
-          return (
-            <NodeCard
-              key={id}
-              node={n}
-              measure
-              inside={insideOf[id]}
-              style={{ width: n.w ?? DEFAULT_NODE_WIDTH }}
-            />
-          )
-        })}
+        {measurable(diagram, view.id, expandedSet, reach).map(({ key, node }) => (
+          <NodeCard
+            key={key}
+            node={node}
+            path={key}
+            measure
+            inside={insideOf(node, reach, canOpen)}
+            style={{ width: node.w ?? DEFAULT_NODE_WIDTH }}
+          />
+        ))}
       </div>
     </>
   )
@@ -807,17 +873,23 @@ function Level({
 interface WorldProps {
   uid: string
   diagram: CompiledDiagram
-  view: CompiledDiagram['views'][number]
+  view: CompiledView
   layout: Layout
+  /** The layout with the diagrams shown in place: what is expanded is whatever it holds. */
+  nested: NestedLayout | null
+  diagrams: Diagrams
   nodeFlags: Record<string, NodeCardState>
   edgeStates: Record<string, EdgeState>
   stateOf: (id: string) => EdgeState
   register: (id: string, el: SVGPathElement | null) => void
-  insideOf: Record<string, NodeInside>
+  insides: Record<string, NodeInside>
+  selected: string | null
+  hidePlanned: boolean
   onHoverNode: (id: string | null) => void
   onHoverEdge: (id: string | null) => void
-  onSelect: (id: string) => void
-  onOpen?: (id: string) => void
+  onSelect: (path: string) => void
+  onToggle: (path: string) => void
+  onOpen?: (path: string) => void
 }
 
 /** Zones, edges and nodes. Memoised so the per-frame player updates do not touch it. */
@@ -826,13 +898,18 @@ const World = memo(function World({
   diagram,
   view,
   layout,
+  nested,
+  diagrams,
   nodeFlags,
   stateOf,
   register,
-  insideOf,
+  insides,
+  selected,
+  hidePlanned,
   onHoverNode,
   onHoverEdge,
   onSelect,
+  onToggle,
   onOpen,
 }: WorldProps) {
   const noDim = useCallback(() => false, [])
@@ -851,14 +928,39 @@ const World = memo(function World({
       {view.nodeIds.map((id) => {
         const r = layout.nodes[id]
         if (!r) return null
+        const here = nested?.layout === layout ? nested.inner[id] : undefined
+        const child = here && diagrams[here.name]
+        if (here && child && insides[id]) {
+          return (
+            <InlineDiagram
+              key={id}
+              uid={uid}
+              path={id}
+              node={diagram.nodes[id]!}
+              rect={r}
+              child={child}
+              view={child.views.find((v) => v.id === here.viewId)!}
+              inner={here}
+              diagrams={diagrams}
+              state={nodeFlags[id]}
+              inside={insides[id]!}
+              selected={selected}
+              hidePlanned={hidePlanned}
+              onSelect={onSelect}
+              onToggle={onToggle}
+              onOpen={onOpen}
+            />
+          )
+        }
         return (
           <NodeCard
             key={id}
             node={diagram.nodes[id]!}
             style={{ left: r.x, top: r.y, width: r.w, height: r.h }}
             state={nodeFlags[id]}
-            inside={insideOf[id]}
+            inside={insides[id]}
             onSelect={onSelect}
+            onExpand={onToggle}
             onOpen={onOpen}
             onHover={onHoverNode}
           />
@@ -867,3 +969,35 @@ const World = memo(function World({
     </>
   )
 })
+
+const NO_DIAGRAMS: Diagrams = {}
+
+/**
+ * The diagram, view and node a path names, following the diagrams shown in place. `prefix` is what
+ * to put before an id to name a sibling of it. Null when the path leads nowhere (it was folded).
+ */
+function resolvePath(
+  path: string | null,
+  diagram: CompiledDiagram,
+  view: CompiledView,
+  nested: NestedLayout | null,
+  diagrams: Diagrams,
+): { diagram: CompiledDiagram; view: CompiledView; id: string; prefix: string } | null {
+  if (!path) return null
+  const ids = path.split('/')
+  const id = ids.pop()!
+  let at = diagram
+  let atView = view
+  let layout = nested
+  for (const step of ids) {
+    const here = layout?.inner[step]
+    const next = here && diagrams[here.name]
+    const nextView = next?.views.find((v) => v.id === here?.viewId)
+    if (!here || !next || !nextView) return null
+    at = next
+    atView = nextView
+    layout = here.layout
+  }
+  if (!at.nodes[id]) return null
+  return { diagram: at, view: atView, id, prefix: ids.length ? `${ids.join('/')}/` : '' }
+}

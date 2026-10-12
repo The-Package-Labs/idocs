@@ -1,6 +1,6 @@
 ---
 title: Nested diagrams
-description: Let a node hold a whole diagram of its own, so readers can look inside it and find their way back.
+description: Let a node hold a whole diagram of its own, shown in place as a group or opened one level deeper, with a way back.
 tableOfContents:
   maxHeadingLevel: 3
 ---
@@ -8,9 +8,9 @@ tableOfContents:
 import Diagram from '@the-package-labs/idocs-astro/Diagram.astro'
 import { Aside } from '@astrojs/starlight/components'
 
-One picture cannot show a system and the inside of every part of it. Give a node a `diagram:` and the card becomes a door: the reader opens it, lands in that diagram with its own views, scenarios and player, and comes back to exactly where they were.
+One picture cannot show a system and the inside of every part of it. Give a node a `diagram:` and the reader can look inside it in two ways: **expand** it, so the whole inner diagram appears right there as a group, or **open** it, moving into that diagram with its own views, scenarios and player, and coming back to exactly where they were.
 
-Try it. **Look inside** the order service, then look inside the stock card there, then use **Back**.
+Try both. **Expand** the order service, then **expand** the stock card inside it. Then **open** the stock card and use **Back**.
 
 <Diagram name="nest-shop" showDescription />
 
@@ -41,17 +41,39 @@ To open it on a particular view or scenario, use the long form:
 | `name` | The folder name of the diagram to open. |
 | `view` | The view to show first. Defaults to the scenario's own view, then the first view. |
 | `scenario` | A scenario to select when it opens. It starts paused, at the beginning. |
+| `mode` | `both` (the default), `expand` or `open`: which of the two ways the reader gets. |
+| `expanded` | `true` to start expanded in place. |
+
+## Expand or open
+
+**Expand** shows the node's diagram in place. The card becomes a group named after the node, with the whole inner diagram inside it, laid out at its own size, and everything around it moves aside. Inside, nodes can be clicked for their details, and a node that holds a diagram of its own can be expanded too, as deep as the system goes. **Collapse** folds the group back into one card.
+
+**Open** moves into the diagram instead: it takes the whole frame, with its own views, scenarios and player, and a trail leads back.
+
+Use expand to see how the parts fit together without losing the picture around them, and open to play the inner diagram's scenarios. Both are offered by default, and an author can choose:
+
+```yaml
+  stock:
+    diagram: { name: nest-stock, expanded: true }   # starts expanded
+  reports:
+    diagram: { name: nest-orders, mode: open }      # can only be opened
+```
+
+<Diagram name="nest-inline" showDescription />
+
+A node that is expanded behaves as one box for the outer diagram: its edges end on the group, and the outer scenarios arrive at it. An expanded diagram shows one view, the one the node names or, failing that, the first. Its scenarios are played by opening it.
 
 ## What the reader sees
 
-- **On the card**, a *Look inside* strip and a small stacked edge, so a node that holds a diagram looks different from one that does not.
-- **In the drawer**, the same action at the top, with the name of the diagram and how much is in it. This is the way in for the keyboard and for screen readers.
-- **After opening**, the diagram zooms in from the card, and a trail appears above it: `Online shop › Order service › Stock`. **Back** goes up one level, any crumb jumps straight to that level, and <kbd>Esc</kbd> goes up one level too (unless the drawer is open, which closes first).
-- **After going back**, the parent is exactly as it was left: same view, same scenario and step, same open drawer. The card that was opened pulses once, so the eye finds its place.
+- **On the card**, a strip with **Expand** and **Open**, and a small stacked edge, so a node that holds a diagram looks different from one that does not.
+- **In the drawer**, the same actions at the top, with the name of the diagram and how much is in it. This is the way in for the keyboard and for screen readers.
+- **Expanded**, the group has a header with **Collapse** and **Open**. The camera glides to it so the reader sees what appeared.
+- **After opening**, the diagram zooms in from the card, and a trail appears above it: `Online shop › Order service › Stock`. **Back** goes up one level, any crumb jumps straight to that level, and <kbd>Esc</kbd> goes up one level too (unless the drawer is open, which closes first). Opening a node that sits inside an expanded group opens every level on the way, so the trail still says where you are.
+- **After going back**, the parent is exactly as it was left: same view, same scenario and step, same open drawer, same groups expanded. The card that was opened pulses once, so the eye finds its place.
 
 While a level is covered by one opened from it, its scenario pauses.
 
-The inner diagram's description, if it has one, is shown above it, since the page around it was not written for that diagram.
+The inner diagram's description, if it has one, is shown above it when it is opened, since the page around it was not written for that diagram.
 
 ## Deep links
 
@@ -61,7 +83,7 @@ The way down is part of the address, so a link can open straight inside:
 #nest-shop~=orders/stock&nest-shop/nest-orders/nest-stock=reserve.3
 ```
 
-The first part is the nodes to open, level by level. The second is the scenario and step of the diagram at that level, named by the path of diagrams that leads to it.
+The first part is the nodes to open, level by level. The second is the scenario and step of the diagram at that level, named by the path of diagrams that leads to it. What is expanded is part of the link too, as `#nest-shop+=orders,orders/stock`: the paths of the expanded nodes, or `none` when the author's own expanded nodes have all been folded.
 
 ## Rules
 

@@ -19,6 +19,7 @@ Run `idocs check --json` first. Each message has a file, line, column and often 
 | `Diagram "y" has no view "v"` / `... no scenario "s"` | The `view` or `scenario` in a node's long-form `diagram:` is not in that diagram. The hint lists what it has. |
 | `Scenario "s" plays on view "a", not "b"` | A node's `diagram:` names both, and they disagree. Drop `view` and it opens on the scenario's own view. |
 | `Node "x" opens "y", which leads back to "z"` / `... opens its own diagram` | Diagrams cannot nest in a circle. The hint shows the loop; break it at one node. |
+| warning `` `expanded` has no effect with `mode: open` `` | A node limited to `mode: open` cannot start expanded. Use `mode: expand` or `both`, or drop `expanded`. |
 | `Edge id "e" is used twice` | Give edges distinct ids or drop the ids. |
 | `Unknown edge kind "x"` | Use a built-in kind or define it under `edgeKinds:`. |
 | warning `Unknown icon "x"` | `idocs icons search x`, then use the suggested name. |
