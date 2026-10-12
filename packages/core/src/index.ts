@@ -2,6 +2,7 @@
 
 export * from './defaults'
 export * from './geometry'
+export * from './highlight'
 export * from './layout'
 export * from './nested-layout'
 export * from './nesting'

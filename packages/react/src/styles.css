@@ -949,99 +949,186 @@
   color: var(--idocs-accent);
 }
 
-/* ---------- commands: code blocks with Copy, and placeholders the reader fills in ---------- */
+/* ---------- commands: a code block with a header, colour, Copy, and placeholders to fill in ---------- */
 
 .idocs-cmd {
   position: relative;
   min-width: 0;
-  margin: 0 0 10px;
+  margin: 0 0 12px;
+  border: 1px solid var(--idocs-line);
+  border-radius: 8px;
+  background: var(--idocs-surface-2);
+  color: var(--idocs-ink);
+}
+/* On a page the block is its own root, and .idocs would stack the header, code and fields with a gap. */
+.idocs.idocs-cmd {
+  display: block;
+}
+.idocs-cmd-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 5px 0 12px;
+  border-bottom: 1px solid var(--idocs-line);
+  border-radius: 7px 7px 0 0;
+  background: color-mix(in srgb, var(--idocs-line) 24%, var(--idocs-surface-2));
+  color: var(--idocs-muted);
+  font: 500 11.5px var(--idocs-sans);
+}
+.idocs-cmd-lang {
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+.idocs-cmd-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--idocs-ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.idocs-cmd-title::before {
+  content: "";
+  width: 1px;
+  height: 12px;
+  background: var(--idocs-line);
+}
+.idocs-cmd-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.idocs-cmd-ctl {
+  display: contents;
 }
 .idocs-cmd pre {
   margin: 0;
-  /* Room for the Copy icon on the first line. */
-  padding: 10px 44px 10px 12px;
-  background: var(--idocs-surface-2);
-  border: 1px solid var(--idocs-line);
-  border-radius: 8px;
+  padding: 11px 14px;
+  border: 0;
+  border-radius: 0 0 7px 7px;
+  background: transparent;
   overflow-x: auto;
   color: var(--idocs-ink);
-  font: 12px / 1.55 var(--idocs-mono);
-}
-/* With fields, the buttons get a strip of their own above the first line. */
-.idocs-cmd[data-vars] pre {
-  padding: 36px 12px 10px;
+  font: 12.5px / 1.6 var(--idocs-mono);
+  tab-size: 2;
 }
 .idocs-cmd pre code {
-  background: none;
   padding: 0;
+  background: none;
+  color: inherit;
   font: inherit;
   white-space: pre;
 }
-.idocs-cmd-title {
-  margin-bottom: 4px;
+
+/* Colour, in the palette of the theme, so a diagram restyled by its tokens restyles its code. */
+.idocs-cmd .hl-comment {
   color: var(--idocs-muted);
-  font: 500 12px var(--idocs-sans);
+  font-style: italic;
 }
-.idocs-cmd-bar {
-  position: absolute;
-  top: 5px;
-  right: 6px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.idocs-cmd .hl-string {
+  color: var(--idocs-green);
 }
+.idocs-cmd .hl-keyword {
+  color: var(--idocs-blue);
+}
+.idocs-cmd .hl-flag,
+.idocs-cmd .hl-section {
+  color: var(--idocs-violet);
+}
+.idocs-cmd .hl-section {
+  font-weight: 600;
+}
+.idocs-cmd .hl-number,
+.idocs-cmd .hl-literal {
+  color: var(--idocs-amber);
+}
+.idocs-cmd .hl-variable,
+.idocs-cmd .hl-key {
+  color: var(--idocs-teal);
+}
+.idocs-cmd .hl-operator {
+  color: var(--idocs-muted);
+}
+
+/* Icon buttons. What each does is a tooltip, which also says Copied. */
 .idocs-cmd .idocs-cmd-btn {
   appearance: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 8px;
-  border: 1px solid var(--idocs-line);
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
   border-radius: 6px;
-  background: var(--idocs-surface);
+  background: transparent;
   color: var(--idocs-muted);
-  font: 500 12px var(--idocs-sans);
   cursor: pointer;
 }
 .idocs-cmd .idocs-cmd-btn svg {
-  width: 14px;
-  height: 14px;
-  flex: none;
+  width: 16px;
+  height: 16px;
 }
 .idocs-cmd .idocs-cmd-btn:hover,
-.idocs-cmd .idocs-cmd-btn.is-on,
-.idocs-cmd .idocs-cmd-btn.is-done {
-  border-color: var(--idocs-accent);
+.idocs-cmd .idocs-cmd-btn.is-on {
+  background: color-mix(in srgb, var(--idocs-accent) 14%, transparent);
   color: var(--idocs-accent);
 }
-.idocs-cmd .idocs-cmd-btn.is-primary {
-  border-color: var(--idocs-accent);
-  background: var(--idocs-accent);
-  color: var(--idocs-surface);
-}
-.idocs-cmd .idocs-cmd-btn.is-primary:hover {
-  filter: brightness(1.08);
+.idocs-cmd .idocs-cmd-btn.is-done {
+  color: var(--idocs-ok);
 }
 .idocs-cmd .idocs-cmd-btn:focus-visible,
+.idocs-cmd .idocs-cmd-text:focus-visible,
 .idocs-cmd .idocs-ph:focus-visible,
 .idocs-cmd-field input:focus-visible {
   outline: 2px solid var(--idocs-accent);
-  outline-offset: 2px;
+  outline-offset: 1px;
+}
+.idocs-cmd [data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 5;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: var(--idocs-ink);
+  color: var(--idocs-surface);
+  font: 500 11.5px / 1.4 var(--idocs-sans);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition:
+    opacity 0.12s,
+    transform 0.12s;
+}
+.idocs-cmd [data-tip]:hover::after {
+  transition-delay: 0.25s;
+}
+.idocs-cmd [data-tip]:hover::after,
+.idocs-cmd [data-tip]:focus-visible::after,
+.idocs-cmd [data-tip].is-done::after {
+  opacity: 1;
+  transform: none;
 }
 .idocs-cmd-count {
-  display: grid;
-  place-items: center;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  border-radius: 8px;
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
   background: var(--idocs-accent);
   color: var(--idocs-surface);
-  font: 600 10.5px var(--idocs-sans);
+  font: 600 9.5px / 14px var(--idocs-sans);
+  text-align: center;
 }
-/* Without placeholders the button is only an icon; the word is still there for a screen reader. */
-.idocs-cmd-quiet,
 .idocs-cmd-live {
   position: absolute;
   width: 1px;
@@ -1051,10 +1138,11 @@
   white-space: nowrap;
 }
 
+/* A placeholder in the code: a chip that opens its field, and shows the value once there is one. */
 .idocs-cmd .idocs-ph {
-  padding: 0 2px;
-  margin: 0 -2px;
-  border-radius: 3px;
+  padding: 0 3px;
+  margin: 0 -1px;
+  border-radius: 4px;
   background: var(--idocs-accent-soft);
   color: var(--idocs-accent);
   box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--idocs-accent) 55%, transparent);
@@ -1073,11 +1161,11 @@
 .idocs-cmd-fill {
   display: grid;
   gap: 8px;
-  margin-top: 6px;
-  padding: 10px 12px;
-  border: 1px solid var(--idocs-line);
-  border-radius: 8px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--idocs-line);
+  border-radius: 0 0 7px 7px;
   background: var(--idocs-surface);
+  font-family: var(--idocs-sans);
 }
 .idocs-cmd-field {
   display: grid;
@@ -1117,6 +1205,36 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+}
+.idocs-cmd .idocs-cmd-text {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--idocs-line);
+  border-radius: 6px;
+  background: var(--idocs-surface);
+  color: var(--idocs-ink);
+  font: 500 12px var(--idocs-sans);
+  cursor: pointer;
+}
+.idocs-cmd .idocs-cmd-text svg {
+  width: 14px;
+  height: 14px;
+}
+.idocs-cmd .idocs-cmd-text:hover {
+  border-color: var(--idocs-accent);
+  color: var(--idocs-accent);
+}
+.idocs-cmd .idocs-cmd-text.is-primary {
+  border-color: var(--idocs-accent);
+  background: var(--idocs-accent);
+  color: var(--idocs-surface);
+}
+.idocs-cmd .idocs-cmd-text.is-primary:hover {
+  filter: brightness(1.08);
 }
 .idocs-cmd-note {
   color: var(--idocs-muted);

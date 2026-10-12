@@ -3,13 +3,37 @@ import { renderMarkdown } from '../src/markdown'
 
 const fence = (info: string, body: string) => `\`\`\`${info}\n${body}\n\`\`\``
 
+/** What a reader would copy from the block: the words, without the colours. */
+const textOf = (html: string) =>
+  html
+    .replace(/<[^>]+>/g, '')
+    .replace(/&#x3C;/g, '<')
+    .replace(/&#x26;/g, '&')
+    .replace(/&#x22;/g, '"')
+
 describe('commands in compiled markdown', () => {
-  it('wraps every fenced block and leaves a place for the controls', () => {
+  it('wraps every fenced block in a frame: the language, the code, and places for the controls', () => {
     const html = renderMarkdown(fence('sh', 'pnpm install'))
     expect(html).toContain('<div class="idocs-cmd" data-idocs-cmd="" data-lang="sh">')
-    expect(html).toContain('<div class="idocs-cmd-ui"></div>')
+    expect(html).toContain('<span class="idocs-cmd-lang">Shell</span>')
+    expect(html).toContain('<div class="idocs-cmd-bar"></div>')
+    expect(html).toContain('<div class="idocs-cmd-panel"></div>')
     expect(html).not.toContain('idocs-ph')
-    expect(html).not.toContain('data-vars')
+  })
+
+  it('shows a title next to the language, and calls a block with no language text', () => {
+    expect(renderMarkdown(fence('yaml title="diagram.yaml"', 'a: 1'))).toContain(
+      '<span class="idocs-cmd-lang">YAML</span><span class="idocs-cmd-title">diagram.yaml</span>',
+    )
+    expect(renderMarkdown(fence('', 'plain'))).toContain('<span class="idocs-cmd-lang">Text</span>')
+  })
+
+  it('colours the code and leaves its text as it was', () => {
+    const html = renderMarkdown(fence('sh', 'git commit -m "x" # why'))
+    expect(html).toContain('<span class="hl-keyword">git</span>')
+    expect(html).toContain('<span class="hl-flag">-m</span>')
+    expect(html).toContain('<span class="hl-comment"># why</span>')
+    expect(textOf(html)).toContain('git commit -m "x" # why')
   })
 
   it('marks placeholders in a command, under one key however they are spelled', () => {
@@ -18,7 +42,6 @@ describe('commands in compiled markdown', () => {
       '<span class="idocs-ph" data-key="owner" data-raw="{Owner}">{Owner}</span>',
     )
     expect(html).toContain('data-key="repo"')
-    expect(html).toContain('data-idocs-cmd="" data-lang="bash" data-vars=""')
     expect(html).toContain('data-key="you_pat" data-raw="<you_pat>"')
   })
 
@@ -30,7 +53,7 @@ describe('commands in compiled markdown', () => {
 
   it('drops the backslash of an escaped placeholder and does not mark it', () => {
     const html = renderMarkdown(fence('sh', 'echo \\{literal}'))
-    expect(html).toContain('echo {literal}')
+    expect(textOf(html)).toContain('echo {literal}')
     expect(html).not.toContain('idocs-ph')
   })
 

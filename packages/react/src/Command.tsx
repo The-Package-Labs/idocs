@@ -1,12 +1,15 @@
 import {
   fillSegments,
+  highlightSegments,
+  languageLabel,
   type PlaceholderSegment,
   placeholdersOf,
   shownPlaceholder,
   splitPlaceholders,
   unsetPlaceholders,
 } from '@the-package-labs/idocs-core'
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { cx } from './util'
 import { pageVars, useVars } from './vars'
 
@@ -41,31 +44,34 @@ export function segmentsOfBlock(block: HTMLElement): PlaceholderSegment[] {
     if (last?.kind === 'text') last.text += text
     else if (text) out.push({ kind: 'text', text })
   }
-  for (const n of block.querySelector('pre > code')?.childNodes ?? []) {
-    const el = n as HTMLElement
-    const { key, raw } = el.dataset ?? {}
-    if (el.nodeType === 1 && el.classList.contains('idocs-ph') && key && raw) {
-      out.push({ kind: 'var', key, raw, name: raw.slice(1, -1) })
-    } else {
-      push(n.textContent ?? '')
+  // Colours are spans around the text; a placeholder is the one kind of span that is not walked into.
+  const walk = (node: Node) => {
+    for (const n of node.childNodes) {
+      const el = n as HTMLElement
+      if (el.nodeType !== 1) {
+        push(n.textContent ?? '')
+        continue
+      }
+      const { key, raw } = el.dataset
+      if (el.classList.contains('idocs-ph') && key && raw) {
+        out.push({ kind: 'var', key, raw, name: raw.slice(1, -1) })
+      } else {
+        walk(el)
+      }
     }
   }
+  const code = block.querySelector('pre > code')
+  if (code) walk(code)
   return out
 }
 
-interface ControlsProps {
-  segments: PlaceholderSegment[]
-  open: boolean
-  /** The placeholder the reader pointed at, to put the cursor in its field. */
-  focusKey?: string
-  onOpenChange: (open: boolean) => void
-}
-
-/**
- * Copy, and a way to give the placeholders of the command their values first. The fields open
- * under the command, not over it, so a narrow drawer or a list that scrolls never clips them.
- */
-export function CommandControls({ segments, open, focusKey, onOpenChange }: ControlsProps) {
+/** What a command does when the reader acts on it: shared by the buttons in the header and the fields under the code. */
+function useCommand(
+  segments: PlaceholderSegment[],
+  open: boolean,
+  focusKey: string | undefined,
+  onOpenChange: (open: boolean) => void,
+) {
   const vars = useVars()
   const store = pageVars()
   const fields = useMemo(() => placeholdersOf(segments), [segments])
@@ -98,101 +104,156 @@ export function CommandControls({ segments, open, focusKey, onOpenChange }: Cont
     opener.current?.focus()
   }
 
-  // A step row or a list around this block acts on clicks and on Space; typing here is not that.
-  const keep = { onClick: (e: { stopPropagation(): void }) => e.stopPropagation() }
+  return {
+    vars,
+    store,
+    fields,
+    unset,
+    copied,
+    copy,
+    close,
+    panel,
+    opener,
+    panelId,
+    open,
+    onOpenChange,
+  }
+}
 
+type Command = ReturnType<typeof useCommand>
+
+// A step row or a list around a block acts on clicks and on Space; typing in a field is not that.
+const keep = {
+  onClick: (e: { stopPropagation(): void }) => e.stopPropagation(),
+  onKeyDown: (e: { stopPropagation(): void }) => e.stopPropagation(),
+}
+
+/** The icon buttons of the header: fill in the placeholders, and copy. A tooltip says what each does. */
+function CommandBar({ c }: { c: Command }) {
+  const tip =
+    c.copied === 'copied' ? 'Copied!' : c.copied === 'failed' ? 'Press Ctrl+C to copy' : 'Copy'
   return (
-    <div className="idocs-cmd-ctl" {...keep} onKeyDown={(e) => e.stopPropagation()}>
-      <div className="idocs-cmd-bar">
-        {fields.length > 0 && (
-          <button
-            ref={opener}
-            type="button"
-            className={cx('idocs-cmd-btn', open && 'is-on')}
-            aria-expanded={open}
-            aria-controls={panelId}
-            onClick={() => onOpenChange(!open)}
-            title="Give the placeholders their values, then copy"
-          >
-            <SlidersIcon />
-            <span>Fill in</span>
-            {unset > 0 && <b className="idocs-cmd-count">{unset}</b>}
-          </button>
-        )}
+    <div className="idocs-cmd-ctl" {...keep}>
+      {c.fields.length > 0 && (
         <button
+          ref={c.opener}
           type="button"
-          className={cx('idocs-cmd-btn', copied === 'copied' && 'is-done')}
-          onClick={copy}
-          title={copied === 'copied' ? 'Copied' : 'Copy'}
+          className={cx('idocs-cmd-btn', c.open && 'is-on')}
+          aria-label="Fill in values"
+          aria-expanded={c.open}
+          aria-controls={c.panelId}
+          data-tip={c.unset > 0 ? `Fill in values · ${c.unset} to set` : 'Fill in values'}
+          onClick={() => c.onOpenChange(!c.open)}
         >
-          {copied === 'copied' ? <CheckIcon /> : <CopyIcon />}
-          <span className={cx(fields.length === 0 && copied === null && 'idocs-cmd-quiet')}>
-            {copied === 'copied' ? 'Copied' : copied === 'failed' ? 'Press Ctrl+C' : 'Copy'}
-          </span>
+          <SlidersIcon />
+          {c.unset > 0 && <b className="idocs-cmd-count">{c.unset}</b>}
         </button>
-        <span className="idocs-cmd-live" role="status" aria-live="polite">
-          {copied === 'copied' ? 'Copied to the clipboard' : ''}
-        </span>
-      </div>
-
-      {open && (
-        <div
-          ref={panel}
-          id={panelId}
-          className="idocs-cmd-fill"
-          role="group"
-          aria-label="Values for this command"
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              e.preventDefault()
-              close()
-            }
-          }}
-        >
-          {fields.map((f) => (
-            <label key={f.key} className="idocs-cmd-field">
-              <span className="idocs-cmd-name">
-                {f.name}
-                {f.secret && <em title="Kept in this tab only; never saved">secret</em>}
-              </span>
-              <input
-                data-key={f.key}
-                type={f.secret ? 'password' : 'text'}
-                value={vars[f.key] ?? ''}
-                placeholder={f.raw}
-                spellCheck={false}
-                autoCapitalize="off"
-                autoCorrect="off"
-                autoComplete="off"
-                onChange={(e) => store.set(f.key, e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    void copy()
-                  }
-                }}
-              />
-            </label>
-          ))}
-          <div className="idocs-cmd-actions">
-            <button type="button" className="idocs-cmd-btn is-primary" onClick={copy}>
-              <CopyIcon />
-              <span>Copy with these values</span>
-            </button>
-            <button
-              type="button"
-              className="idocs-cmd-btn"
-              onClick={() => store.clear(fields.map((f) => f.key))}
-            >
-              Clear
-            </button>
-            {fields.some((f) => f.secret) && (
-              <span className="idocs-cmd-note">Secrets stay in this tab and are not saved.</span>
-            )}
-          </div>
-        </div>
       )}
+      <button
+        type="button"
+        className={cx('idocs-cmd-btn', c.copied === 'copied' && 'is-done')}
+        aria-label="Copy"
+        data-tip={tip}
+        onClick={c.copy}
+      >
+        {c.copied === 'copied' ? <CheckIcon /> : <CopyIcon />}
+      </button>
+      <span className="idocs-cmd-live" role="status" aria-live="polite">
+        {c.copied === 'copied' ? 'Copied to the clipboard' : ''}
+      </span>
     </div>
+  )
+}
+
+/**
+ * The fields of the placeholders. They open under the code, inside the frame, not over it, so a
+ * narrow drawer or a list that scrolls never clips them.
+ */
+function CommandPanel({ c }: { c: Command }) {
+  if (!c.open) return null
+  return (
+    <div className="idocs-cmd-ctl" {...keep}>
+      <div
+        ref={c.panel}
+        id={c.panelId}
+        className="idocs-cmd-fill"
+        role="group"
+        aria-label="Values for this command"
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.preventDefault()
+            c.close()
+          }
+        }}
+      >
+        {c.fields.map((f) => (
+          <label key={f.key} className="idocs-cmd-field">
+            <span className="idocs-cmd-name">
+              {f.name}
+              {f.secret && <em title="Kept in this tab only; never saved">secret</em>}
+            </span>
+            <input
+              data-key={f.key}
+              type={f.secret ? 'password' : 'text'}
+              value={c.vars[f.key] ?? ''}
+              placeholder={f.raw}
+              spellCheck={false}
+              autoCapitalize="off"
+              autoCorrect="off"
+              autoComplete="off"
+              onChange={(e) => c.store.set(f.key, e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  void c.copy()
+                }
+              }}
+            />
+          </label>
+        ))}
+        <div className="idocs-cmd-actions">
+          <button type="button" className="idocs-cmd-text is-primary" onClick={c.copy}>
+            <CopyIcon />
+            <span>Copy with these values</span>
+          </button>
+          <button
+            type="button"
+            className="idocs-cmd-text"
+            onClick={() => c.store.clear(c.fields.map((f) => f.key))}
+          >
+            Clear
+          </button>
+          {c.fields.some((f) => f.secret) && (
+            <span className="idocs-cmd-note">Secrets stay in this tab and are not saved.</span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** For a block the compiler framed: the two components above, put into the places it left for them. */
+export function CommandPortals({
+  segments,
+  bar,
+  panel,
+  open,
+  focusKey,
+  onOpenChange,
+}: {
+  segments: PlaceholderSegment[]
+  bar: Element
+  panel: Element
+  open: boolean
+  focusKey?: string
+  onOpenChange: (open: boolean) => void
+}) {
+  const c = useCommand(segments, open, focusKey, onOpenChange)
+  return (
+    <>
+      {createPortal(<CommandBar c={c} />, bar)}
+      {createPortal(<CommandPanel c={c} />, panel)}
+    </>
   )
 }
 
@@ -207,22 +268,42 @@ export function CommandBlock({
   title?: string
 }) {
   const segments = useMemo(() => splitPlaceholders(code.replace(/\n$/, '')), [code])
+  const pieces = useMemo(
+    () => highlightSegments(lang, segments).map((piece, id) => ({ piece, id })),
+    [lang, segments],
+  )
   const vars = useVars()
   const [open, setOpen] = useState(false)
   const [focusKey, setFocusKey] = useState<string>()
-  const hasVars = segments.some((s) => s.kind === 'var')
-  const parts = useMemo(() => segments.map((s, at) => ({ s, id: at })), [segments])
+  const c = useCommand(segments, open, focusKey, (o) => {
+    setOpen(o)
+    if (!o) setFocusKey(undefined)
+  })
 
   return (
-    <div className="idocs idocs-cmd" data-lang={lang} {...(hasVars ? { 'data-vars': '' } : {})}>
-      {title && <div className="idocs-cmd-title">{title}</div>}
+    <div className="idocs idocs-cmd" data-lang={lang}>
+      <div className="idocs-cmd-head">
+        <span className="idocs-cmd-lang">{languageLabel(lang)}</span>
+        {title && <span className="idocs-cmd-title">{title}</span>}
+        <div className="idocs-cmd-bar">
+          <CommandBar c={c} />
+        </div>
+      </div>
       <pre>
         <code>
-          {parts.map(({ s, id }) => {
-            if (s.kind === 'text') return s.text
-            const shown = shownPlaceholder(s, vars)
+          {pieces.map(({ piece, id }): ReactNode => {
+            if (piece.kind === 'text') {
+              return piece.cls ? (
+                <span key={id} className={`hl-${piece.cls}`}>
+                  {piece.text}
+                </span>
+              ) : (
+                piece.text
+              )
+            }
+            const shown = shownPlaceholder(piece.segment, vars)
             const pick = () => {
-              setFocusKey(s.key)
+              setFocusKey(piece.segment.key)
               setOpen(true)
             }
             return (
@@ -247,16 +328,8 @@ export function CommandBlock({
           })}
         </code>
       </pre>
-      <div className="idocs-cmd-ui">
-        <CommandControls
-          segments={segments}
-          open={open}
-          focusKey={focusKey}
-          onOpenChange={(o) => {
-            setOpen(o)
-            if (!o) setFocusKey(undefined)
-          }}
-        />
+      <div className="idocs-cmd-panel">
+        <CommandPanel c={c} />
       </div>
     </div>
   )

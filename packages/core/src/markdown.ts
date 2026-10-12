@@ -3,6 +3,7 @@ import remarkGfm from 'remark-gfm'
 import remarkParse from 'remark-parse'
 import remarkRehype from 'remark-rehype'
 import { unified } from 'unified'
+import { highlightSegments, languageLabel } from './highlight'
 import { splitPlaceholders, takesPlaceholders } from './placeholders'
 
 // The slice of hast this file touches. @types/hast is not a dependency of ours.
@@ -31,10 +32,23 @@ const classesOf = (el: HastElement): string[] => {
   return Array.isArray(c) ? c.map(String) : typeof c === 'string' ? c.split(/\s+/) : []
 }
 
+/** `title="Install"` in the info string of a fence. */
+const titleOf = (meta: string | undefined): string | undefined => {
+  const m = meta?.match(/\btitle=(?:"([^"]*)"|'([^']*)')/)
+  return m?.[1] ?? m?.[2]
+}
+
+const el = (
+  tagName: string,
+  properties: Record<string, unknown>,
+  children: HastNode[] = [],
+): HastElement => ({ type: 'element', tagName, properties, children })
+
 /**
- * Every fenced code block becomes a command: the block, and an empty place after it where the
- * viewer puts Copy and the fields for its placeholders. The placeholders are marked here, once,
- * so the viewer does not scan text; without script the block is still an ordinary one.
+ * Every fenced code block becomes a command: a frame with the language in a header, the code in
+ * colour, and two empty places the viewer fills (the buttons in the header, the fields under the
+ * code). The placeholders are marked here, once, so the viewer does not scan text; without script
+ * the block is still an ordinary, coloured one.
  */
 function commandBlocks() {
   const wrap = (pre: HastElement): HastElement => {
@@ -43,45 +57,42 @@ function commandBlocks() {
     const lang = classesOf(code)
       .find((c) => c.startsWith('language-'))
       ?.slice('language-'.length)
-    const only = code.children.every((c) => c.type === 'text')
-    let vars = false
-    if (only && takesPlaceholders(lang, code.data?.meta)) {
+    const title = titleOf(code.data?.meta)
+    if (code.children.every((c) => c.type === 'text')) {
       const text = code.children.map((c) => (c as HastText).value).join('')
-      // Rewritten even with no placeholder in it: an escape (`\{x}`) loses its backslash here.
-      const segments = splitPlaceholders(text)
-      vars = segments.some((s) => s.kind === 'var')
-      code.children = segments.map(
-        (s): HastNode =>
-          s.kind === 'text'
-            ? { type: 'text', value: s.text }
-            : {
-                type: 'element',
-                tagName: 'span',
-                properties: { className: ['idocs-ph'], dataKey: s.key, dataRaw: s.raw },
-                children: [{ type: 'text', value: s.raw }],
-              },
-      )
+      // An escape (`\{x}`) loses its backslash here, so the text is rewritten even without a placeholder.
+      const segments = takesPlaceholders(lang, code.data?.meta)
+        ? splitPlaceholders(text)
+        : [{ kind: 'text' as const, text }]
+      code.children = highlightSegments(lang, segments).map((piece): HastNode => {
+        if (piece.kind === 'var') {
+          const { key, raw } = piece.segment
+          return el('span', { className: ['idocs-ph'], dataKey: key, dataRaw: raw }, [
+            { type: 'text', value: raw },
+          ])
+        }
+        return piece.cls
+          ? el('span', { className: [`hl-${piece.cls}`] }, [{ type: 'text', value: piece.text }])
+          : { type: 'text', value: piece.text }
+      })
     }
-    return {
-      type: 'element',
-      tagName: 'div',
-      properties: {
-        className: ['idocs-cmd'],
-        dataIdocsCmd: '',
-        ...(lang ? { dataLang: lang } : {}),
-        // The header strip with Fill in needs room above the first line.
-        ...(vars ? { dataVars: '' } : {}),
-      },
-      children: [
+    return el(
+      'div',
+      { className: ['idocs-cmd'], dataIdocsCmd: '', ...(lang ? { dataLang: lang } : {}) },
+      [
+        el('div', { className: ['idocs-cmd-head'] }, [
+          el('span', { className: ['idocs-cmd-lang'] }, [
+            { type: 'text', value: languageLabel(lang) },
+          ]),
+          ...(title
+            ? [el('span', { className: ['idocs-cmd-title'] }, [{ type: 'text', value: title }])]
+            : []),
+          el('div', { className: ['idocs-cmd-bar'] }),
+        ]),
         pre,
-        {
-          type: 'element',
-          tagName: 'div',
-          properties: { className: ['idocs-cmd-ui'] },
-          children: [],
-        },
+        el('div', { className: ['idocs-cmd-panel'] }),
       ],
-    }
+    )
   }
   const walk = (node: HastNode) => {
     if (!('children' in node) || !node.children) return

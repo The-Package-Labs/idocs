@@ -9,11 +9,11 @@ import Diagram from '@the-package-labs/idocs-astro/Diagram.astro'
 import Command from '@the-package-labs/idocs-astro/Command.astro'
 import { Aside } from '@astrojs/starlight/components'
 
-Documentation is full of commands that only work after the reader changes a word in them: their name, a repository, a token. idocs turns a command into something they can **copy**, and lets them **fill in** those words first.
+Documentation is full of commands that only work after the reader changes a word in them: their name, a repository, a token. idocs draws a command as a code block, in colour, with the language in its header and two icon buttons: **copy**, and **fill in**, for those words.
 
 <Command lang="sh" code="git clone https://github.com/{yourname}/{repo}.git" />
 
-Click **Fill in**, or a highlighted word in the command, type a name, and press <kbd>Enter</kbd> to copy. The same name fills every command on the site, and is remembered for next time.
+Click the sliders icon, or a highlighted word in the command, type a name, and press <kbd>Enter</kbd> to copy. The number on the icon is how many values are still empty. The same name fills every command on the site, and is remembered for next time.
 
 ## Placeholders
 
@@ -35,11 +35,26 @@ A name containing `token`, `pat`, `jwt`, `key`, `secret` or `password` (as a who
 
 ## In a diagram
 
-Every fenced block in a node's Markdown file, a step's `note:` or a view's `summary:` gets a **Copy** button, and the blocks with placeholders get **Fill in**.
+Every fenced block in a node's Markdown file, a step's `note:` or a view's `summary:` is drawn this way: the language in the header, the code in colour, a copy button, and a fill-in button where there are placeholders.
 
 <Diagram name="ref-commands" />
 
-Placeholders are looked for in shell, plain text and configuration blocks: no language, `sh`, `bash`, `zsh`, `console`, `powershell`, `text`, `env`, `ini`, `toml`, `yaml` and `http`. In `ts`, `html`, `json` and other code, `{x}` and `<x>` are code, so they are left alone. Add `vars` to the fence to turn them on, or `novars` to turn them off:
+### Colour and the header
+
+The header names the language: ` ```sh ` is **Shell**, ` ```yaml ` is **YAML**, and a block with no language is **Text**. A title goes after it with `title="..."`:
+
+````md
+```yaml title="diagram.yaml"
+nodes:
+  api: { kind: service }
+```
+````
+
+Colours come from the theme's own palette (`--idocs-blue`, `--idocs-green` and so on), so a diagram that restyles its tokens restyles its code, in both themes. Shell, YAML, JSON, HTTP and INI, TOML and `.env` files are read properly: commands and their flags, variables, keys, sections, headers. Other languages get strings, numbers and comments (TypeScript, JavaScript, Python, Go, Rust, Java, C, SQL, CSS, Ruby and similar), and the rest, such as HTML and Markdown, are left plain.
+
+### Placeholders in a language
+
+Placeholders are looked for only in shell, plain text and configuration blocks: no language, `sh`, `bash`, `zsh`, `console`, `powershell`, `text`, `env`, `ini`, `toml`, `yaml` and `http`. In `ts`, `html`, `json` and other code, `{x}` and `<x>` are code, so they are left alone. Add `vars` to the fence to turn them on, or `novars` to turn them off:
 
 ````md
 ```json vars
@@ -75,6 +90,8 @@ curl -H "Authorization: Bearer $TOKEN" https://api.example.com/{org}/repos`} />
 curl -H "Authorization: Bearer $TOKEN" https://api.example.com/{org}/repos`}
 />
 
+`lang` picks the colours and the name in the header, as in a fence, and `title` adds a caption next to it.
+
 <Aside type="note">
-  `<Command>` does not colour the command. Use an ordinary fenced block for code that has no values to fill in.
+  Use an ordinary fenced block, not `<Command>`, for code that has no values to fill in. Docs pages colour those with the site's own code theme, so the two look a little different.
 </Aside>

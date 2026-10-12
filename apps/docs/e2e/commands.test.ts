@@ -1,5 +1,11 @@
 import { fileURLToPath } from 'node:url'
-import { type Browser, type BrowserContext, chromium, type Page } from 'playwright-core'
+import {
+  type Browser,
+  type BrowserContext,
+  chromium,
+  type Locator,
+  type Page,
+} from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { serve } from '../../../scripts/static-server.mjs'
 
@@ -48,20 +54,80 @@ const clipboard = (page: Page) => page.evaluate(() => navigator.clipboard.readTe
 /** The nth command written in the page with <Command>. */
 const command = (page: Page, n: number) => page.locator('.idocs-command .idocs-cmd').nth(n)
 
+// The buttons are icons: they are found by what they are called, and the tooltip says the same.
+const fillIn = (cmd: Locator) => cmd.getByRole('button', { name: 'Fill in values' })
+const copyButton = (cmd: Locator) => cmd.getByRole('button', { name: 'Copy', exact: true })
+
+describe('a command looks like a code block', () => {
+  it('names its language, colours the code, and shows a title', async () => {
+    const ctx = await context()
+    const { page, problems } = await open(ctx)
+    const first = command(page, 0)
+    await first.scrollIntoViewIfNeeded()
+    expect(await first.locator('.idocs-cmd-lang').innerText()).toBe('Shell')
+    expect(await first.locator('.hl-keyword').first().innerText()).toBe('git')
+    // The colours are real: a command is not the colour of the text around it.
+    const [command_, text] = await Promise.all([
+      first
+        .locator('.hl-keyword')
+        .first()
+        .evaluate((e) => getComputedStyle(e).color),
+      first.locator('pre').evaluate((e) => getComputedStyle(e).color),
+    ])
+    expect(command_).not.toBe(text)
+
+    const second = command(page, 1)
+    expect(await second.locator('.idocs-cmd-lang').innerText()).toBe('Shell')
+    expect(await second.locator('.idocs-cmd-title').innerText()).toBe('Install')
+    expect(await second.locator('.hl-flag').first().innerText()).toBe('-H')
+    expect(problems).toEqual([])
+    await ctx.close()
+  })
+
+  it('has icon buttons that say what they do when pointed at', async () => {
+    const ctx = await context()
+    const { page } = await open(ctx)
+    const cmd = command(page, 0)
+    await cmd.scrollIntoViewIfNeeded()
+    expect(await copyButton(cmd).innerText()).toBe('')
+    expect(await copyButton(cmd).getAttribute('data-tip')).toBe('Copy')
+    expect(await fillIn(cmd).getAttribute('data-tip')).toBe('Fill in values · 2 to set')
+    await copyButton(cmd).hover()
+    await page.waitForTimeout(500)
+    const shown = await copyButton(cmd).evaluate((e) => getComputedStyle(e, '::after').opacity)
+    expect(shown).toBe('1')
+    await ctx.close()
+  })
+
+  it('colours the code in a diagram too, with the language in the header', async () => {
+    const ctx = await context()
+    const { page } = await open(ctx)
+    const diagram = page.locator('[data-diagram="ref-commands"]')
+    await diagram.scrollIntoViewIfNeeded()
+    await diagram.locator('[data-node="dev"] .idocs-node-title').first().click()
+    const block = diagram.locator('.idocs-drawer .idocs-cmd').first()
+    await block.waitFor()
+    expect(await block.locator('.idocs-cmd-lang').innerText()).toBe('Shell')
+    expect(await block.locator('.hl-keyword').first().innerText()).toBe('git')
+    await ctx.close()
+  })
+})
+
 describe('commands with placeholders', () => {
   it('copies a command as it is, and again with the values the reader filled in', async () => {
     const ctx = await context()
     const { page, problems } = await open(ctx)
     const cmd = command(page, 0)
     await cmd.scrollIntoViewIfNeeded()
-    await cmd.locator('.idocs-cmd-btn', { hasText: 'Fill in' }).waitFor()
+    await fillIn(cmd).waitFor()
 
-    // Nothing is set: copying leaves the placeholders as written.
-    await cmd.locator('.idocs-cmd-btn', { hasText: 'Copy' }).first().click()
+    // Nothing is set: copying leaves the placeholders as written, and the tooltip confirms it.
+    await copyButton(cmd).click()
+    await expect.poll(() => copyButton(cmd).getAttribute('data-tip')).toBe('Copied!')
     expect(await clipboard(page)).toBe('git clone https://github.com/{yourname}/{repo}.git')
 
     // Fill in one, and the command shows it and the count drops.
-    await cmd.locator('.idocs-cmd-btn', { hasText: 'Fill in' }).click()
+    await fillIn(cmd).click()
     expect(await cmd.locator('.idocs-cmd-count').innerText()).toBe('2')
     await page.keyboard.type('ada')
     expect(await cmd.locator('.idocs-ph').first().innerText()).toBe('ada')
@@ -72,7 +138,7 @@ describe('commands with placeholders', () => {
     expect(await clipboard(page)).toBe('git clone https://github.com/ada/{repo}.git')
 
     await cmd.locator('.idocs-cmd-field input').nth(1).fill('widgets')
-    await cmd.locator('.idocs-cmd-btn.is-primary').click()
+    await cmd.locator('.idocs-cmd-text.is-primary').click()
     expect(await clipboard(page)).toBe('git clone https://github.com/ada/widgets.git')
 
     // Escape folds the fields and puts focus back on the button.
@@ -97,7 +163,7 @@ describe('commands with placeholders', () => {
     const { page } = await open(ctx)
     const cmd = command(page, 1)
     await cmd.scrollIntoViewIfNeeded()
-    await cmd.locator('.idocs-cmd-btn', { hasText: 'Fill in' }).click()
+    await fillIn(cmd).click()
 
     const token = cmd.locator('.idocs-cmd-field input[data-key="you_pat"]')
     expect(await token.getAttribute('type')).toBe('password')
@@ -107,7 +173,7 @@ describe('commands with placeholders', () => {
     const shown = await cmd.locator('pre').innerText()
     expect(shown).toContain('••••••••')
     expect(shown).not.toContain('ghp_secret123')
-    await cmd.locator('.idocs-cmd-btn.is-primary').click()
+    await cmd.locator('.idocs-cmd-text.is-primary').click()
     expect(await clipboard(page)).toBe(
       'export TOKEN=ghp_secret123\ncurl -H "Authorization: Bearer $TOKEN" https://api.example.com/acme/repos',
     )
@@ -131,7 +197,7 @@ describe('commands with placeholders', () => {
     // Give the name on the page...
     const cmd = command(page, 0)
     await cmd.scrollIntoViewIfNeeded()
-    await cmd.locator('.idocs-cmd-btn', { hasText: 'Fill in' }).click()
+    await fillIn(cmd).click()
     await cmd.locator('.idocs-cmd-field input[data-key="yourname"]').fill('ada')
 
     // ...and open a node of the diagram.
@@ -140,13 +206,13 @@ describe('commands with placeholders', () => {
     await diagram.locator('[data-node="dev"] .idocs-node-title').first().click()
     const inDrawer = diagram.locator('.idocs-drawer .idocs-cmd').first()
     await inDrawer.waitFor()
-    await inDrawer.locator('.idocs-cmd-btn', { hasText: 'Fill in' }).waitFor()
+    await fillIn(inDrawer).waitFor()
     expect(await inDrawer.locator('pre').innerText()).toContain('github.com/ada/{repo}.git')
 
     // The page's own text is the compiled HTML: copying reads the marks, not what is shown.
     await inDrawer.locator('.idocs-ph[data-key="repo"]').first().click()
     await page.keyboard.type('widgets')
-    await inDrawer.locator('.idocs-cmd-btn.is-primary').click()
+    await inDrawer.locator('.idocs-cmd-text.is-primary').click()
     expect(await clipboard(page)).toBe(
       'git clone https://github.com/ada/widgets.git\ncd widgets\npnpm install\npnpm dev',
     )

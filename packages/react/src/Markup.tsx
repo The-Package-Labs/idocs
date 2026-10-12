@@ -1,7 +1,6 @@
 import { type PlaceholderSegment, shownPlaceholder } from '@the-package-labs/idocs-core'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { CommandControls, segmentsOfBlock } from './Command'
+import { CommandPortals, segmentsOfBlock } from './Command'
 import { useVars } from './vars'
 
 type Picked = { block: HTMLElement; key?: string }
@@ -65,19 +64,22 @@ export function Markup({ html, className }: { html: string; className?: string }
         }}
       />
       {blocks.map((block, i) => {
-        const host = block.querySelector('.idocs-cmd-ui')
+        const bar = block.querySelector('.idocs-cmd-bar')
+        const panel = block.querySelector('.idocs-cmd-panel')
         const segments = parts[i]
-        if (!host || !segments) return null
+        if (!bar || !panel || !segments) return null
         const mine = picked?.block === block
-        return createPortal(
-          <CommandControls
+        return (
+          <CommandPortals
+            // biome-ignore lint/suspicious/noArrayIndexKey: the blocks are those of this html, in order
+            key={i}
             segments={segments}
+            bar={bar}
+            panel={panel}
             open={mine}
             focusKey={mine ? picked?.key : undefined}
             onOpenChange={(open) => setPicked(open ? { block } : null)}
-          />,
-          host,
-          String(i),
+          />
         )
       })}
     </>
