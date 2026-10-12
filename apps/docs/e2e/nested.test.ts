@@ -39,6 +39,7 @@ async function open(path = PAGE, width = 1440) {
   return { page, problems, close: () => ctx.close() }
 }
 
+const ROOT = '.idocs[data-diagram="nest-shop"]'
 const level = (n: number) => `.idocs[data-diagram="nest-shop"] [data-level="${n}"]`
 const card = (n: number, id: string) => `${level(n)} [data-node="${id}"]`
 /** The strip's two actions: show it in place, move into it. */
@@ -58,6 +59,47 @@ const where = (page: Page, selector: string) =>
     const r = el.getBoundingClientRect()
     return [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)]
   })
+
+/** Records the camera, and where the `orders` node is on screen, on every frame from now on. */
+async function watchCamera(page: Page) {
+  await page.evaluate(() => {
+    const w = document.querySelector('.idocs[data-diagram="nest-shop"] .idocs-world')!
+    const log: [number, number, number, number, number][] = []
+    ;(window as unknown as { __cam: typeof log }).__cam = log
+    const tick = () => {
+      const m = /scale\(([\d.]+)\)/.exec((w as HTMLElement).style.transform)
+      const r = w.querySelector('[data-node="orders"]')?.getBoundingClientRect()
+      log.push([
+        performance.now(),
+        m ? Number(m[1]) : 0,
+        w.querySelectorAll('[data-inline]').length,
+        r?.left ?? Number.NaN,
+        r?.top ?? Number.NaN,
+      ])
+      requestAnimationFrame(tick)
+    }
+    tick()
+  })
+  const mark = () => page.evaluate(() => (window as unknown as { __cam: unknown[] }).__cam.length)
+  return {
+    mark,
+    /** What the camera did since `from`: the scales it passed through, and how far `orders` jumped when it was swapped. */
+    async since(from: number) {
+      const log = await page.evaluate(
+        (f) => (window as unknown as { __cam: number[][] }).__cam.slice(f),
+        from,
+      )
+      const scales = log.map((r) => r[1]!)
+      let jump = 0
+      for (let i = 1; i < log.length; i++) {
+        const [a, b] = [log[i - 1]!, log[i]!]
+        if (a[2] !== b[2] && !Number.isNaN(a[3]) && !Number.isNaN(b[3]))
+          jump = Math.max(jump, Math.abs(b[3]! - a[3]!), Math.abs(b[4]! - a[4]!))
+      }
+      return { first: scales[0]!, last: scales.at(-1)!, max: Math.max(...scales), jump }
+    },
+  }
+}
 
 describe('cards that hold a diagram', () => {
   it('say so, and the others do not', async () => {
@@ -337,6 +379,72 @@ describe('expanding in place', () => {
     await page.waitForSelector(`${card(0, 'orders')}:not([data-inline])`)
     expect(await frames(page)).toEqual([])
     expect(problems).toEqual([])
+    await close()
+  })
+
+  it('moves the camera once and smoothly: folding eases out to the whole diagram', async () => {
+    const { page, problems, close } = await open()
+    const cam = await watchCamera(page)
+    const frameFit = async () => {
+      // What "Fit to view" would show: the camera should end exactly there after a fold.
+      await page.locator(`${ROOT} [aria-label="Fit to view"]`).click()
+      await page.waitForTimeout(100)
+      return cam.since(await cam.mark().then((n) => n - 1))
+    }
+
+    let from = await cam.mark()
+    await page.click(expand(0, 'orders'))
+    await page.waitForSelector(group('orders'))
+    await page.waitForTimeout(1200)
+    const grew = await cam.since(from)
+    // Showing keeps the card where it was for the first frame, then carries on from there.
+    expect(grew.jump).toBeLessThan(12)
+
+    from = await cam.mark()
+    await page.getByRole('button', { name: 'Collapse Order service' }).click()
+    await page.waitForTimeout(1500)
+    const folded = await cam.since(from)
+    // No jump when the layout is swapped, and never a zoom in on the card that is left.
+    expect(folded.jump).toBeLessThan(12)
+    expect(folded.max).toBeLessThanOrEqual(Math.max(folded.first, folded.last) + 0.01)
+    // It ends on the whole diagram, with every top-level card in the frame.
+    const frame = (await page.locator(`${ROOT} .idocs-frame`).boundingBox())!
+    const cards = await page.locator(`${level(0)} .idocs-world > .idocs-node`).evaluateAll((els) =>
+      els.map((e) => {
+        const r = e.getBoundingClientRect()
+        return [r.left, r.top, r.right, r.bottom]
+      }),
+    )
+    for (const [l, t, r, b] of cards) {
+      expect(l).toBeGreaterThanOrEqual(frame.x - 1)
+      expect(r).toBeLessThanOrEqual(frame.x + frame.width + 1)
+      expect(t).toBeGreaterThanOrEqual(frame.y - 1)
+      expect(b).toBeLessThanOrEqual(frame.y + frame.height + 1)
+    }
+    const settled = (await frameFit()).last
+    expect(Math.abs(settled - folded.last)).toBeLessThan(0.01)
+    expect(problems).toEqual([])
+    await close()
+  })
+
+  it('folds an inner node back to the group around it, not to the card', async () => {
+    const { page, close } = await open()
+    await page.click(expand(0, 'orders'))
+    await page.waitForSelector(group('orders'))
+    await page.click(expand(0, 'orders/stock'))
+    await page.waitForSelector(group('orders/stock'))
+    await page.waitForTimeout(1300)
+    const cam = await watchCamera(page)
+    const from = await cam.mark()
+    await page.click(
+      `${group('orders/stock')} > .idocs-inline-head button[aria-label="Collapse Stock"]`,
+    )
+    await page.waitForSelector(`${card(0, 'orders/stock')}:not([data-inline])`)
+    await page.waitForTimeout(1500)
+    const folded = await cam.since(from)
+    expect(folded.jump).toBeLessThan(12)
+    // Zooms out to the group, never in on the single card.
+    expect(folded.last).toBeLessThanOrEqual(folded.first + 0.01)
     await close()
   })
 

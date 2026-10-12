@@ -529,16 +529,32 @@ function Level({
 
   // Show a node's diagram in place, or fold it back. The camera then moves to it once the new
   // layout is there: `after` is the layout the reader was looking at when they asked.
-  const [reveal, setReveal] = useState<{ path: string; after: number } | null>(null)
+  const [reveal, setReveal] = useState<{
+    path: string
+    after: number
+    /** Folding, not showing: the camera then frames what is around the node, not the node. */
+    folding: boolean
+    /** Where the node was, so the camera can keep it where it was on screen. */
+    from?: Rect
+  } | null>(null)
   const generationNow = useRef(generation)
   generationNow.current = generation
+  const expandedNow = useRef(expanded)
+  expandedNow.current = expanded
+  const nestedNow = useRef(nested)
+  nestedNow.current = nested
   const toggleExpand = useCallback((path: string) => {
     // The card under the pointer is about to be replaced and will never say the pointer left it.
     setHover({})
     setExpanded((cur) => (cur.includes(path) ? cur.filter((p) => p !== path) : [...cur, path]))
     // A node that is folded away cannot stay selected.
     setSelected((cur) => (cur?.startsWith(`${path}/`) ? null : cur))
-    setReveal({ path, after: generationNow.current })
+    setReveal({
+      path,
+      after: generationNow.current,
+      folding: expandedNow.current.includes(path),
+      from: nestedNow.current ? rectOfPath(nestedNow.current, path) : undefined,
+    })
   }, [])
   const openPath = useCallback((path: string) => onOpen?.(path), [onOpen])
 
@@ -644,11 +660,23 @@ function Level({
       rect: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 },
     }
   }, [following, layout, scenario, timeline, stepIndex, mode])
+  // After a node is shown or folded, move the camera once the new layout is there. Showing frames
+  // the node that grew; folding frames what it sat in: the group around it, or the whole diagram.
+  // Either way the node stays where it was on screen first, so nothing jumps.
   const revealCamera = useMemo<Focus | null>(() => {
-    if (!reveal || !nested || generation <= reveal.after) return null
-    const rect = rectOfPath(nested, reveal.path)
-    return rect ? { key: `reveal:${reveal.path}:${reveal.after}`, rect } : null
-  }, [reveal, nested, generation])
+    if (!reveal || !layout || !nested || generation <= reveal.after) return null
+    const here = rectOfPath(nested, reveal.path)
+    const parent = reveal.path.includes('/')
+      ? rectOfPath(nested, reveal.path.slice(0, reveal.path.lastIndexOf('/')))
+      : undefined
+    const whole: Rect = { x: 0, y: 0, w: layout.width, h: layout.height }
+    const rect = reveal.folding ? (parent ?? whole) : (here ?? whole)
+    return {
+      key: `reveal:${reveal.path}:${reveal.after}`,
+      rect,
+      anchor: reveal.from && here ? { from: reveal.from, to: here } : undefined,
+    }
+  }, [reveal, layout, nested, generation])
   const camera = revealCamera ?? followCamera
   const stopFollowing = useCallback(() => setFollow(false), [])
 
