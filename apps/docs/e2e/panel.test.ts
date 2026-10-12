@@ -338,7 +338,10 @@ describe('the timeline', () => {
     const scrolled = await page.evaluate(() => scrollY)
     // Step through to the end: the active step is always inside the panel's visible area.
     for (let i = 0; i < 12; i++) {
-      await page.locator('button[aria-label="Next step"]').click()
+      // Dispatched, not clicked: the page writes the step to the address bar whenever playback
+      // stops, and a click that overlaps that makes Playwright retry with the button forced to the
+      // edge of the window, which scrolls the page. That is the test's doing, not the page's.
+      await page.locator('button[aria-label="Next step"]').dispatchEvent('click')
       await page.waitForTimeout(450)
       const inside = await page.evaluate(() => {
         const body = document.querySelector('.idocs-panel-body')!.getBoundingClientRect()
