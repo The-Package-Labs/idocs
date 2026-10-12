@@ -2,6 +2,10 @@
 
 Versions up to 0.2.0 were published as `create-docspp`.
 
+## 0.5.0
+
+No changes in this release.
+
 ## 0.4.0
 
 No changes in this release.

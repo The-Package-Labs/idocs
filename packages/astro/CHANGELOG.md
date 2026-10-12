@@ -2,6 +2,33 @@
 
 Versions up to 0.2.0 were published as `@packagelab/docspp-astro`.
 
+## 0.5.0
+
+### Minor Changes
+
+- 6b984a0: A diagram can say how it opens. A new `defaults:` block takes `view`, `scenario`, `mode` (`flow`, `sequence` or `story`), `sidebar`, `subtitles` and `autoplay`, so every page that shows the diagram opens it the same way, and the props of `<Diagram>` still win over it. The compiler checks that the view and the scenario exist and that the scenario plays on that view. The address bar only records where the reader is when it differs from how the diagram opens.
+  
+  In the sequence view, the dotted lines now hang from the middle of each node's header, where the arrows begin and end, instead of running between the columns.
+- 6b984a0: Entity cards, for data models. A node with `fields` is drawn as a table of rows, a name on the left and a type on the right: `- id: { type: uuid, key: true }`, `- email: text`, `- customer_id: { type: uuid, ref: customers.id }`. A key gets a `#`, and a field with a `ref` is drawn in the accent colour with an arrow. `pill: TABLE` puts a small label in the card header, `kind: entity` gives the blue table look, and a card with fields is wider by default.
+  
+  A `ref` draws a `relation` edge between the two cards. Edges can name fields on either end (`orders.customer_id -> customers.id: N:1`), and one you write replaces the one a `ref` would draw, so you can label it. Between two entities an edge is a `relation` by default. The compiler reports an unknown node or field with the nearest match, and the drawer lists a card's fields and the fields each connection is about.
+  
+  In this release the line runs between the two cards, not to the row.
+- 6b984a0: Scenarios move to a bar along the bottom of the diagram, like the controls of a video. It has a menu to choose the scenario, the title and description of the step in progress (these replace the subtitles over the picture; `subtitles` and CC now show or hide them), the play buttons, speed and Flow/Sequence/Story, and a slider with a segment for each step, all of the same width, grouped by phase. Pointing at the slider names the step under the pointer. **Steps** opens every step as a list above the bar, with phases that fold, and a description that does not fit ends with **more**, which opens it.
+  
+  The panel over the picture now holds only the outline and the views, and folds to a single button. It starts open when the diagram has another view to choose, not when it has a scenario. The bar wraps into rows in a narrow widget.
+  
+  Core exports `buildScrubber`, `positionAt`, `timeAt`, `slotAt` and `slotOfStep`, the model of the slider.
+
+### Patch Changes
+
+- Updated dependencies [6b984a0]
+- Updated dependencies [6b984a0]
+- Updated dependencies [6b984a0]
+- Updated dependencies [6b984a0]
+  - @the-package-labs/idocs-core@0.5.0
+  - @the-package-labs/idocs-react@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
