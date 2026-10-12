@@ -2,6 +2,8 @@ import {
   type CompiledDiagram,
   type CompiledScenario,
   type CompiledStep,
+  hasPhases,
+  phaseSpans,
   scopeSvgIds,
 } from '@the-package-labs/idocs-core'
 import { useId } from 'react'
@@ -12,6 +14,9 @@ interface Props {
   scenario: CompiledScenario
   current: number
   onSeek: (index: number) => void
+  /** Phases (by index) the reader has folded away: their rows are not drawn. */
+  collapsed: ReadonlySet<number>
+  onTogglePhase: (phase: number) => void
 }
 
 const COL = 176
@@ -34,7 +39,14 @@ function clip(text: string, max: number): string {
 }
 
 /** The scenario as a classic sequence diagram, derived from the same steps the player runs. */
-export function SequenceView({ diagram, scenario, current, onSeek }: Props) {
+export function SequenceView({
+  diagram,
+  scenario,
+  current,
+  onSeek,
+  collapsed,
+  onTogglePhase,
+}: Props) {
   const uid = useId().replace(/:/g, '')
   const actors: string[] = []
   const see = (id?: string) => {
@@ -49,24 +61,37 @@ export function SequenceView({ diagram, scenario, current, onSeek }: Props) {
   const width = LEFT + actors.length * COL + 24
 
   type Row =
-    | { type: 'phase'; y: number; title: string; caption?: string; index: number }
+    | {
+        type: 'phase'
+        y: number
+        title: string
+        caption?: string
+        index: number
+        count: number
+        open: boolean
+        active: boolean
+      }
     | { type: 'step'; y: number; h: number; step: CompiledStep; index: number }
   const rows: Row[] = []
   let y = TOP
-  let lastPhase = -1
-  const showPhases = scenario.phases.some((p) => p.title)
+  const showPhases = hasPhases(scenario)
+  const spans = phaseSpans(scenario)
   scenario.steps.forEach((step, index) => {
-    if (showPhases && step.phase !== lastPhase) {
+    const span = showPhases ? spans.find((p) => p.from <= index && index <= p.to) : undefined
+    if (span && span.from === index) {
       rows.push({
         type: 'phase',
         y,
-        title: scenario.phases[step.phase]!.title,
-        caption: scenario.phases[step.phase]!.caption,
-        index: step.phase,
+        title: span.title,
+        caption: span.caption,
+        index: span.index,
+        count: span.count,
+        open: !collapsed.has(span.index),
+        active: current >= span.from && current <= span.to,
       })
       y += ROW_PHASE
-      lastPhase = step.phase
     }
+    if (span && collapsed.has(span.index)) return
     const h = step.type === 'self' ? ROW_SELF : ROW_FLOW
     rows.push({ type: 'step', y, h, step, index })
     y += h
@@ -100,19 +125,44 @@ export function SequenceView({ diagram, scenario, current, onSeek }: Props) {
 
         {rows.map((r) => {
           if (r.type === 'phase') {
+            const toggle = () => onTogglePhase(r.index)
             return (
-              <g key={`p${r.index}`}>
+              <g
+                key={`p${r.index}`}
+                className={cx('seq-phase-row', r.active && 'is-active')}
+                role="button"
+                tabIndex={0}
+                aria-expanded={r.open}
+                aria-label={`${r.title}, ${r.open ? 'fold this phase away' : 'show this phase'}`}
+                onClick={toggle}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    toggle()
+                  }
+                }}
+              >
                 <rect
+                  className="seq-phase-bg"
                   x={6}
                   y={r.y + 2}
                   width={width - 12}
                   height={ROW_PHASE - 6}
                   rx={6}
-                  fill="var(--idocs-surface-2)"
                 />
-                <text className="seq-phase" x={18} y={r.y + 19}>
+                <path
+                  className="seq-chev"
+                  d="M0 -4 4 0 0 4"
+                  transform={`translate(19 ${r.y + 14})${r.open ? ' rotate(90)' : ''}`}
+                  fill="none"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <text className="seq-phase" x={34} y={r.y + 19}>
                   {roman(r.index)} · {r.title}
-                  {r.caption ? `  —  ${r.caption}` : ''}
+                  {r.open && r.caption ? `  —  ${r.caption}` : ''}
+                  {r.open ? '' : `  ·  ${r.count} step${r.count === 1 ? '' : 's'}`}
                 </text>
               </g>
             )

@@ -98,14 +98,15 @@ describe('landing page', () => {
     expect(await hero.locator('.idocs-tool[aria-pressed="true"]:has-text("Follow")').count()).toBe(
       0,
     )
-    // Views and scenarios are in the panel, which starts folded to a rail so the picture has room.
-    expect(await hero.locator('.idocs-side.is-folded').count()).toBe(1)
-    expect(await hero.locator('.idocs-rail [aria-label="Next step"]').count()).toBe(1)
+    // Views and scenarios are in the panel, which starts folded to a pill so the picture has room.
+    expect(await hero.locator('.idocs-panel.is-folded').count()).toBe(1)
+    expect(await hero.locator('.idocs-panel.is-folded [aria-label="Next step"]').count()).toBe(1)
     await hero.getByRole('button', { name: 'Show the panel' }).click()
-    expect(await hero.locator('.idocs-side-tab').allTextContents()).toEqual([
+    expect(await hero.locator('.idocs-panel-tab').allTextContents()).toEqual([
+      'Outline',
+      'Views',
       'Scenarios',
       'Timeline',
-      'Views',
     ])
     expect(await scenarioTitles(page, '.lp-hero')).toEqual([
       'Overview',

@@ -50,7 +50,12 @@ const worldTransform = (page: Page) =>
 
 /** Drag the bottom edge by `dy` pixels, and sideways by `dx`, as a pointer does. */
 async function drag(page: Page, dy: number, dx = 0) {
-  const box = (await handle(page).boundingBox())!
+  let box = (await handle(page).boundingBox())!
+  // A pointer cannot drag past the window: bring the edge up first when it would run out of it.
+  if (box.y + Math.max(dy, 0) > WINDOW - 40) {
+    await page.evaluate((by) => scrollBy(0, by), box.y - WINDOW / 3)
+    box = (await handle(page).boundingBox())!
+  }
   const x = box.x + box.width / 2
   const y = box.y + box.height / 2
   await page.mouse.move(x, y)
@@ -125,9 +130,10 @@ describe('resizing the viewer', () => {
 
     // Pan by hand: the reader's view is theirs, and resizing leaves it alone.
     const box = (await frame(page).boundingBox())!
-    await page.mouse.move(box.x + 40, box.y + 60)
+    // On the bare picture, not on the panel that floats over the left of it.
+    await page.mouse.move(box.x + box.width - 160, box.y + 60)
     await page.mouse.down()
-    await page.mouse.move(box.x + 140, box.y + 110, { steps: 4 })
+    await page.mouse.move(box.x + box.width - 60, box.y + 110, { steps: 4 })
     await page.mouse.up()
     const panned = await worldTransform(page)
     await drag(page, 80)

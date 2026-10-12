@@ -1,16 +1,17 @@
 import type { Page } from 'playwright-core'
 
-// The scenarios, the timeline and the views live in tabs of the panel beside the picture, and
-// picking a scenario moves to its timeline. These helpers open the tab that has what a test wants.
+// The outline, the scenarios, the timeline and the views live in tabs of the panel that floats
+// inside the viewport, and picking a scenario moves to its timeline. These helpers open the tab
+// that has what a test wants.
 // `scope` is a CSS prefix for a page with several diagrams, or several levels of one.
 
 const literal = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 async function show(page: Page, scope: string, name: string) {
-  // A panel folded to its rail has no tabs: open it first.
+  // A panel folded to its pill has no tabs: open it first.
   const folded = page.locator(`${scope} [aria-label="Show the panel"]`)
   if (await folded.count()) await folded.first().click()
-  const tab = page.locator(`${scope} .idocs-side-tab`).filter({ hasText: name }).first()
+  const tab = page.locator(`${scope} .idocs-panel-tab`).filter({ hasText: name }).first()
   if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click()
 }
 

@@ -3,7 +3,8 @@ import { select } from 'd3-selection'
 import 'd3-transition'
 import { type ZoomBehavior, zoom, zoomIdentity, zoomTransform } from 'd3-zoom'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { cx } from './util'
+import { FullscreenTool } from './Tools'
+import { cx, NARROW } from './util'
 
 const PAD = 28
 /** The shortest the reader can make the viewer, and the tallest, in px. */
@@ -14,6 +15,8 @@ const EXPANDED = 0.88
 /** What the arrow keys and Page Up/Down move the bottom edge by, in px. */
 const STEP = 24
 const PAGE = 120
+/** The zoom a camera that only says "here it is" does not go below, so cards stay readable. */
+const KEEP_AT_LEAST = 0.75
 
 export interface Focus {
   /** Changes whenever the camera should move; the rect is what to bring into view. */
@@ -25,6 +28,11 @@ export interface Focus {
    * screen, then glides to `rect`, so the change reads as one movement and not a jump.
    */
   anchor?: { from: Rect; to: Rect }
+  /**
+   * Only bring the rectangle to the middle of what is in view, and keep the zoom the reader has
+   * (but never smaller than a readable size). For "show me where this is".
+   */
+  keep?: boolean
 }
 
 interface Props {
@@ -37,6 +45,23 @@ interface Props {
   children: React.ReactNode
   /** Rendered over the frame, untransformed (drawer). */
   overlay?: React.ReactNode
+  /**
+   * The panel that floats over the left of the frame (outline, scenarios, player). It takes no part
+   * in panning and zooming.
+   */
+  panel?: React.ReactNode
+  /**
+   * How much of the frame's left edge the panel covers right now, in px. The picture is fitted to
+   * what is left, and words that centre on the frame centre on that instead.
+   */
+  inset?: number
+  /**
+   * What the panel covers when it is open, in px, even while it is folded: the frame is sized for
+   * it, so folding the panel does not make the page jump.
+   */
+  reserve?: number
+  /** How much of the right edge the drawer covers right now, in px: the camera centres on the rest. */
+  insetRight?: number
   /** Words over the bottom of the frame, centred: what the scenario is doing right now. */
   subtitle?: React.ReactNode
   /** The shortest the frame may be, however it is sized, in px. Default 220. */
@@ -56,6 +81,10 @@ export function Canvas({
   onToggleFullscreen,
   children,
   overlay,
+  panel,
+  inset: insetProp = 0,
+  reserve = 0,
+  insetRight = 0,
   subtitle,
   minHeight = MIN_HEIGHT,
   tools,
@@ -94,8 +123,12 @@ export function Canvas({
     return () => ro.disconnect()
   }, [])
 
+  // A frame too narrow to share with the panel lets the panel cover the picture instead.
+  const roomy = width >= NARROW
+  const inset = roomy ? insetProp : 0
   const aspect = (layout.height + PAD * 2) / (layout.width + PAD * 2)
-  const auto = Math.min(maxHeight, Math.max(Math.max(300, minHeight), Math.round(width * aspect)))
+  const room = Math.max(120, width - (roomy ? reserve : 0))
+  const auto = Math.min(maxHeight, Math.max(Math.max(300, minHeight), Math.round(room * aspect)))
   const expandedHeight = Math.max(auto, Math.round(windowHeight * EXPANDED))
   const height = custom ?? (grown ? expandedHeight : auto)
 
@@ -111,7 +144,9 @@ export function Canvas({
         if (event.type === 'dblclick') return false
         if (event.type.startsWith('touch')) return (event as TouchEvent).touches.length >= 2
         if ((event as MouseEvent).button) return false
-        return !(event.target as Element).closest('.idocs-toolbar, .idocs-drawer, .idocs-resize')
+        return !(event.target as Element).closest(
+          '.idocs-toolbar, .idocs-drawer, .idocs-resize, .idocs-panel',
+        )
       })
       .on('zoom', (e) => {
         const t = e.transform
@@ -137,13 +172,14 @@ export function Canvas({
     const w = el.clientWidth
     const h = el.clientHeight
     if (!w || !h) return
-    const k = Math.min((w - PAD * 2) / layout.width, (h - PAD * 2) / layout.height, 1.2)
-    const x = (w - layout.width * k) / 2
+    const free = w - inset
+    const k = Math.min((free - PAD * 2) / layout.width, (h - PAD * 2) / layout.height, 1.2)
+    const x = inset + (free - layout.width * k) / 2
     const y = (h - layout.height * k) / 2
     select(el).call(zb.transform, zoomIdentity.translate(x, y).scale(k))
     moved.current = false
     fitted.current = true
-  }, [layout])
+  }, [layout, inset])
 
   const focusKey = focus?.key
 
@@ -187,9 +223,14 @@ export function Canvas({
     if (!w || !h) return
     const r = focus.rect
     const margin = 90
-    const fitK = Math.min((w - PAD * 2) / layout.width, (h - PAD * 2) / layout.height, 1.2)
-    const k = Math.max(fitK, Math.min(1.1, (w - margin) / r.w, (h - margin) / r.h))
-    const x = w / 2 - (r.x + r.w / 2) * k
+    const free = w - inset
+    const fitK = Math.min((free - PAD * 2) / layout.width, (h - PAD * 2) / layout.height, 1.2)
+    const k = focus.keep
+      ? Math.max(zoomTransform(el).k, Math.min(KEEP_AT_LEAST, 1.1))
+      : Math.max(fitK, Math.min(1.1, (free - margin) / r.w, (h - margin) / r.h))
+    // The middle of what neither the panel nor the drawer covers.
+    const seen = focus.keep && w - inset - insetRight > 200 ? w - inset - insetRight : free
+    const x = inset + seen / 2 - (r.x + r.w / 2) * k
     const y = h / 2 - (r.y + r.h / 2) * k
     const target = zoomIdentity.translate(x, y).scale(k)
     select(el).transition().duration(650).call(zb.transform, target)
@@ -222,7 +263,12 @@ export function Canvas({
     <div
       ref={frameRef}
       className={cx('idocs-frame', 'idocs-ui', resizing && 'is-resizing')}
-      style={fullscreen ? undefined : { height }}
+      style={
+        {
+          ...(fullscreen ? undefined : { height }),
+          '--idocs-inset': `${inset}px`,
+        } as React.CSSProperties
+      }
       onClick={(e) => {
         if (
           e.target === e.currentTarget ||
@@ -322,32 +368,12 @@ export function Canvas({
             </button>
           )}
           {onToggleFullscreen && (
-            <button
-              type="button"
-              className="idocs-tool"
-              title={fullscreen ? 'Exit full screen' : 'Full screen'}
-              aria-label={fullscreen ? 'Exit full screen' : 'Full screen'}
-              onClick={onToggleFullscreen}
-            >
-              <svg
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                {fullscreen ? (
-                  <path d="M13.5 6.5H9.5v-4M9.5 6.5l4.5-4.5M2.5 9.5h4v4M6.5 9.5L2 14" />
-                ) : (
-                  <path d="M9.5 2.5h4v4M13.5 2.5l-5 5M6.5 13.5h-4v-4M2.5 13.5l5-5" />
-                )}
-              </svg>
-            </button>
+            <FullscreenTool fullscreen={fullscreen} onToggle={onToggleFullscreen} />
           )}
         </div>
       </div>
       {subtitle && <div className="idocs-subtitles">{subtitle}</div>}
+      {panel}
       {overlay}
       {!fullscreen && (
         // The bottom edge is a splitter: drag it, or use the arrow keys; double-click puts it back.

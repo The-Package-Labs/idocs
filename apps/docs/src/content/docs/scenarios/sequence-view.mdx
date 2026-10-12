@@ -29,7 +29,7 @@ scenarios:
 - **Columns** are the nodes the scenario uses, left to right in the order they first appear. Each is headed by its icon, title and `sub`, and dotted separators run between the columns, so it is clear which column an arrow belongs to.
 - **Arrows** are flow steps, drawn from the sender to the receiver with the step's label above the line. The line style follows the step's kind: solid for requests, dashed green for responses, red for errors, dotted grey for lookups and amber for events. A planned step is dashed.
 - **Self steps** are drawn as a small labelled box in the node's column.
-- **Phases** become labelled bands across the diagram, such as "I · Record it".
+- **Phases** become labelled bands across the diagram, such as "I · Record it". Click one to fold its rows away, and again to show them; the timeline and the story fold the same phases.
 - **Numbers** at the left match the numbers in the timeline.
 
 A step that crosses several nodes is drawn as one arrow from the first node to the last. The nodes in between do not get arrows of their own, because the sequence diagram shows what the scenario says, not the route a packet takes. Use the flow view to see the hops.

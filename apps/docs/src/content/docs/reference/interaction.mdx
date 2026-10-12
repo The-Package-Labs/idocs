@@ -31,7 +31,7 @@ Everything here works on every diagram without any setup. Try it on this one.
   <dt>Expand the viewer</dt>
   <dd>Make the viewer most of the window's height, keeping it in sight. The same button shrinks it again. Unlike full screen, the page stays around it.</dd>
   <dt>Full screen</dt>
-  <dd>Take the whole component, with its side panel, to full screen. The resize edge and the expand button give way to it.</dd>
+  <dd>Take the whole component, with its panel, to full screen. The resize edge and the expand button give way to it.</dd>
   <dt>Hide planned</dt>
   <dd>Appears when the diagram has planned items. Hides planned nodes and their edges.</dd>
   <dt>Follow</dt>
@@ -61,11 +61,11 @@ A box with an **Expand** and an **Open** strip on its bottom edge holds a whole 
 
 <dl class="keys">
   <dt>Click the box</dt>
-  <dd>The side panel shows the diagram it holds as a picture, with the same two buttons beside it.</dd>
-  <dt><strong>Expand</strong> icon on the box, or in the side panel</dt>
+  <dd>The drawer shows the diagram it holds as a picture, with the same two buttons beside it.</dd>
+  <dt><strong>Expand</strong> icon on the box, in the outline, or in the drawer</dt>
   <dd>Shows the inner diagram in place, as a group around it, and moves the camera there. <strong>Collapse</strong> in the group's header folds it back. A node inside can be expanded too.</dd>
-  <dt><strong>Open</strong> icon on the box, on the group's header, or in the side panel</dt>
-  <dd>Moves into the inner diagram, with its own views, scenarios and player. The icons on the box are for the pointer; the buttons in the side panel have names for the keyboard and for screen readers.</dd>
+  <dt><strong>Open</strong> icon on the box, on the group's header, in the outline, or in the drawer</dt>
+  <dd>Moves into the inner diagram, with its own views, scenarios and player. The icons on the box and in the outline are for the pointer; the buttons in the drawer have names for the keyboard and for screen readers.</dd>
   <dt>Back, or <kbd>Esc</kbd></dt>
   <dd>Goes up one level. <kbd>Esc</kbd> closes the drawer first when it is open, and does nothing while focus is in something else on the page.</dd>
   <dt>A name in the trail</dt>
@@ -74,25 +74,29 @@ A box with an **Expand** and an **Open** strip on its bottom edge holds a whole 
 
 The level you leave is kept exactly as it was: its view, scenario, step, open drawer and expanded groups. Whatever was playing pauses. The box you came out of pulses once.
 
-## The side panel
+## The panel
 
-A panel beside the picture holds the scenarios, the timeline and the views, with the player docked at the bottom. See [the side panel](../../scenarios/playback/#the-side-panel).
+A panel floating over the left of the picture, inside the viewport, holds the outline, the scenarios, the timeline and the views, with the player docked at the bottom. See [the panel](../../scenarios/playback/#the-panel).
 
 <dl class="keys">
+  <dt>Outline tab</dt>
+  <dd>Groups, nodes and their connections as a tree. Click a node to select it and glide to it; click a connection to go to the node at its other end; point at a row to light it up in the picture. <kbd>↑</kbd> <kbd>↓</kbd> move, <kbd>←</kbd> <kbd>→</kbd> fold and unfold, <kbd>Enter</kbd> selects. See [the outline](../../scenarios/playback/#the-outline).</dd>
+  <dt>Views tab</dt>
+  <dd>Switch between slices of the model. Appears when a diagram has more than one view.</dd>
   <dt>Scenarios tab</dt>
   <dd>A card for each scenario. Pick one to play it. **Overview** goes back to the plain diagram. A scenario that a reader selects starts playing, unless the system asks for reduced motion, and the panel moves to its timeline.</dd>
   <dt>Timeline tab</dt>
-  <dd>The steps of the scenario in progress, beside the picture. It keeps the step in progress in view.</dd>
-  <dt>Views tab</dt>
-  <dd>Switch between slices of the model. Appears when a diagram has more than one view.</dd>
+  <dd>The steps of the scenario in progress, grouped by phase. It keeps the step in progress in view.</dd>
+  <dt>A phase header</dt>
+  <dd>Fold the phase's steps away, or show them. Folded, it still says how many steps it holds and, while it plays, how far it has got. The sequence and the story fold the same phases.</dd>
   <dt><kbd>←</kbd> <kbd>→</kbd> on a tab</dt>
   <dd>Move to the next tab.</dd>
   <dt>The arrow at the top of the panel</dt>
-  <dd>Fold the panel to a rail that keeps Previous, Play and Next, or bring it back.</dd>
+  <dd>Fold the panel to a pill that keeps Previous, Play and Next, or bring it back.</dd>
   <dt>Flow, Sequence, Story</dt>
   <dd>Switch how the selected scenario is drawn.</dd>
   <dt>CC</dt>
-  <dd>Turn the subtitles, the step written out over the picture, on or off.</dd>
+  <dd>Turn the subtitles, the step written out over the bottom of the viewport, on or off.</dd>
 </dl>
 
 ## The player

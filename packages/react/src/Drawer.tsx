@@ -5,6 +5,9 @@ import { IconTile } from './Icon'
 import { CollapseIcon, ExpandIcon, insideCounts, LayersIcon, type NodeInside } from './NodeCard'
 import { cx } from './util'
 
+/** How wide the drawer is when there is room, in px (see `.idocs-drawer`). */
+export const DRAWER_WIDTH = 360
+
 interface Props {
   diagram: CompiledDiagram
   view: CompiledView

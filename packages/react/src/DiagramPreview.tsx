@@ -24,7 +24,7 @@ const noState = () => ({})
 
 /**
  * A picture of a whole diagram, drawn from its real layout and scaled to the width it is given:
- * what a node holds, shown in the side panel. It is for looking at, so nothing in it can be
+ * what a node holds, shown in the drawer. It is for looking at, so nothing in it can be
  * focused or clicked.
  */
 export function DiagramPreview({ diagram, viewId }: { diagram: CompiledDiagram; viewId: string }) {

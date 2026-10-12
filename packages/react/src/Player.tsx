@@ -28,7 +28,7 @@ function labelOf(player: PlayerState) {
   return player.playing ? 'Pause' : player.ended ? 'Replay' : player.t > 0 ? 'Resume' : 'Play'
 }
 
-/** The player, laid out for the narrow column of the side panel. */
+/** The player, laid out for the narrow column of the panel. */
 export function Player({
   player,
   timeline,
@@ -122,7 +122,7 @@ export function Player({
   )
 }
 
-/** What stays of the player when the side panel is folded away: step back, play, step on. */
+/** What stays of the player when the panel is folded away: step back, play, step on. */
 export function PlayerRail({
   player,
   stepIndex,

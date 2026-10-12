@@ -1,5 +1,5 @@
 ---
-title: The side panel, playback and sharing
+title: The panel, playback and sharing
 description: "What readers can do with a scenario: play, step, scrub, follow, jump to a step and share a link to it."
 tableOfContents:
   maxHeadingLevel: 3
@@ -8,21 +8,37 @@ tableOfContents:
 import Diagram from '@the-package-labs/idocs-astro/Diagram.astro'
 import { Aside } from '@astrojs/starlight/components'
 
-Everything a reader does with a scenario happens in a panel beside the picture, so the story and the picture are in view together.
+Everything a reader does with a scenario happens in a panel that floats inside the diagram's viewport, the way the panels of a diagram editor do, so the story and the picture are in view together.
 
 <Diagram name="checkout" scenario="place-order" />
 
-## The side panel
+## The panel
 
-The panel has tabs, and the player is docked at the bottom of it whichever tab is open.
+The panel sits over the left of the picture, inside the viewport. It has tabs, and the player is docked at the bottom of it whichever tab is open. While it is open the diagram is fitted to the room it leaves, so nothing starts underneath it.
 
 | Tab | What is in it |
 |---|---|
-| **Scenarios** | A card for each scenario of the view: its title, how many steps and phases it has, the first lines of its summary, and a small bar showing how the phases divide up. **Overview** shows the diagram on its own. |
-| **Timeline** | The scenario in progress: its summary, then every step grouped by phase. Appears once a scenario is chosen, and opens by itself when one is. |
+| **Outline** | The diagram as a tree: its groups, the nodes in them, and the connections of each node. See [the outline](#the-outline). |
 | **Views** | A card for each view. Appears when the diagram has more than one. |
+| **Scenarios** | A card for each scenario of the view: its title, how many steps and phases it has, the first lines of its summary, and a small bar showing how the phases divide up. **Overview** shows the diagram on its own. |
+| **Timeline** | The scenario in progress: its summary, then every step grouped by phase, and each phase can be folded away. Appears once a scenario is chosen, and opens by itself when one is. |
 
-The arrow at the top folds the panel away to a thin rail that keeps **Previous**, **Play** and **Next**, so the picture can have the whole width. A page can start it folded with `sidebar={false}`. When the widget is narrow, under about 820 px, the panel moves above the picture instead of beside it.
+Tabs that can come and go, **Scenarios** (a view may have none) and **Timeline** (it needs a scenario), are always last, so the tabs before them never move.
+
+The arrow at the top folds the panel away to a small pill in the corner that keeps **Previous**, **Play** and **Next**, so the picture can have the whole viewport. The viewer keeps its height when the panel folds, so the page does not jump.
+
+The panel starts open when there is something to choose, a scenario or another view, and folded when there is not. A page can decide with `sidebar={true}` or `sidebar={false}`. When the widget is narrower than about 640 px it starts folded, and an open panel becomes a sheet over the lower part of the picture rather than a column beside it.
+
+## The outline
+
+The **Outline** tab is the diagram as a hierarchy, in the order you wrote it:
+
+- **Groups** hold their nodes and the groups nested in them, with a count. Click a group, or press <kbd>←</kbd>, to fold it away.
+- **Nodes** list their connections underneath, `→` for what the node sends, `←` for what it receives and `↔` for both ways, with the label of the edge. A node that holds [another diagram](../../format/nested-diagrams/) has icons to show it in place or open it; once it is shown in place, the nodes inside it appear under it as rows of their own.
+- **Clicking a node** selects it: its details open and the picture glides to it, keeping the zoom you have. **Clicking a connection** goes to the node at its other end.
+- **Pointing** at a node or a connection lights it up in the picture, and pointing at a node in the picture lights up its row.
+
+The two buttons at the top fold everything away and unfold it again. Everything starts unfolded. The tree is a real tree for the keyboard: <kbd>↑</kbd> and <kbd>↓</kbd> move, <kbd>→</kbd> and <kbd>←</kbd> unfold and fold, <kbd>Enter</kbd> selects.
 
 ## The player
 
@@ -39,13 +55,15 @@ The player also shows where you are: `step 3/9 · 0:04`.
 
 ## The timeline
 
-Every step is listed in the **Timeline** tab, grouped by phase, beside the picture. The panel scrolls by itself to keep the step in progress in view, and never scrolls the page to do it. The step in progress is highlighted, finished steps are marked, and notes appear under their step. A multi-hop step names the nodes it passes through ("via CDN, API gateway").
+Every step is listed in the **Timeline** tab, grouped by phase. The panel scrolls by itself to keep the step in progress in view, and never scrolls the page to do it. The step in progress is highlighted, finished steps are marked, and notes appear under their step. A multi-hop step names the nodes it passes through ("via CDN, API gateway").
+
+**Phases fold.** Click the header of a phase to fold its steps away and again to show them; the two buttons above the steps fold every phase or show them all. A folded phase still says how many steps it holds, and while the scenario plays through it, how far it has got and what is happening: `now: charge the card`, `2/3`. Folding changes what is listed, never what plays. The [sequence](../sequence-view/) and the [story](../story-view/) fold the same phases, so what you put away stays away whichever way the scenario is drawn. Another scenario starts with every phase shown.
 
 **Click a step** to play it. The path already travelled stays lit, so a reader can jump to the middle of a story and still see how it got there. The list is also keyboard-friendly: Tab to a step and press <kbd>Enter</kbd> or <kbd>Space</kbd>.
 
 ## Subtitles
 
-While a scenario plays, the step in progress is written out over the bottom of the picture: its number, what it does, who talks to whom, and the note you wrote for it. They are on by default, and **CC** in the player or on the picture's toolbar turns them off. A page can start without them with `subtitles={false}`. Beside a sequence or a story they stay at the bottom of the window as the page scrolls.
+While a scenario plays, the step in progress is written out over the bottom of the viewport, in whatever the panel leaves of it: its number, what it does, who talks to whom, and the note you wrote for it. They are on by default, and **CC** in the player or on the toolbar turns them off. A page can start without them with `subtitles={false}`. They look the same over the picture, the sequence and the story.
 
 ## Follow
 

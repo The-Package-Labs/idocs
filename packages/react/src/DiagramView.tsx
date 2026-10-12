@@ -1,4 +1,5 @@
 import {
+  buildOutline,
   buildTimeline,
   type CompiledDiagram,
   type CompiledNode,
@@ -17,7 +18,7 @@ import {
 } from '@the-package-labs/idocs-core'
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Canvas, type Focus } from './Canvas'
-import { Drawer } from './Drawer'
+import { DRAWER_WIDTH, Drawer } from './Drawer'
 import { EdgeLayer, type EdgeState } from './EdgeLayer'
 import { focusOf } from './focus'
 import { readHashValue, readScenarioHash, trailKey, writeHash } from './hash'
@@ -26,15 +27,17 @@ import { InterfaceTable } from './InterfaceTable'
 import { insideOf } from './inside'
 import { Legend } from './Legend'
 import { NodeCard, type NodeCardState, type NodeInside } from './NodeCard'
+import { Outline } from './Outline'
 import { Packets } from './Packets'
+import { PANEL_GAP, PANEL_WIDTH, Panel, type SideTab } from './Panel'
+import { ScrollFrame } from './ScrollFrame'
 import { SequenceView } from './SequenceView'
-import { Sidebar, type SideTab } from './Sidebar'
 import { StoryView } from './StoryView'
 import { Subtitle } from './Subtitle'
 import { type Crumb, Trail } from './Trail'
 import { useLayout } from './useLayout'
 import { usePlayer } from './usePlayer'
-import { cx } from './util'
+import { cx, NARROW } from './util'
 import { Zones } from './Zones'
 
 export interface DiagramViewProps {
@@ -56,8 +59,10 @@ export interface DiagramViewProps {
   hash?: boolean
   className?: string
   /**
-   * Whether the side panel (scenarios, timeline, views and the player) starts open. A reader can
-   * fold it away and bring it back. Default `true`.
+   * Whether the panel that floats over the picture (outline, scenarios, timeline, views and the
+   * player) starts open. A reader can fold it away and bring it back. By default it starts open
+   * when there is something to choose, a scenario or another view, and in a frame wide enough to
+   * share; otherwise it starts folded.
    */
   sidebar?: boolean
   /** Show what the scenario is doing in words over the picture while it plays. Default `true`. */
@@ -241,7 +246,10 @@ export function DiagramView(props: DiagramViewProps) {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
     else rootRef.current?.requestFullscreen?.()?.catch(() => {})
   }
-  const canFullscreen = typeof document !== 'undefined' && document.fullscreenEnabled !== false
+  // Known only in the browser, and only once mounted: what the server drew must be what the
+  // client draws first, or hydration fails.
+  const [canFullscreen, setCanFullscreen] = useState(false)
+  useEffect(() => setCanFullscreen(document.fullscreenEnabled !== false), [])
 
   const crumbs: Crumb[] = [
     { key: diagram.name, label: diagram.title, title: 'Back to the top' },
@@ -355,7 +363,7 @@ function Level({
   showDescription = false,
   autoplay: autoplayProp = false,
   hash = true,
-  sidebar: sidebarProp = true,
+  sidebar: sidebarProp,
   subtitles: subtitlesProp = true,
   hashKey,
   active,
@@ -396,10 +404,27 @@ function Level({
   const [mode, setMode] = useState<'flow' | 'sequence' | 'story'>(
     () => modeProp ?? diagram.scenarios.find((s) => s.id === scenarioProp)?.mode ?? 'flow',
   )
-  // The side panel: its tabs, whether it is open, and the subtitles it can switch.
-  const [tabState, setTab] = useState<SideTab>(scenarioProp ? 'timeline' : 'scenarios')
-  const [sideOpen, setSideOpen] = useState(sidebarProp)
+  // The panel: its tabs, whether it is open, and the subtitles it can switch. It opens by itself
+  // when there is something to choose, unless the page said otherwise.
+  const hasChoices = scenarios.length > 0 || diagram.views.length > 1
+  const [tabState, setTab] = useState<SideTab>(
+    scenarioProp ? 'timeline' : scenarios.length > 0 ? 'scenarios' : 'outline',
+  )
+  const [sideOpen, setSideOpen] = useState(sidebarProp ?? hasChoices)
+  // The frame is made tall enough for the panel once the panel has been open, and stays so when it
+  // is folded, so folding does not make the page jump.
+  const [tall, setTall] = useState(sideOpen)
   const [subtitles, setSubtitles] = useState(subtitlesProp)
+  // A narrow frame cannot share itself with the panel: it starts folded there, unless asked to open.
+  const workspaceRef = useRef<HTMLDivElement>(null)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only the first render decides
+  useEffect(() => {
+    const width = workspaceRef.current?.clientWidth ?? 0
+    if (sidebarProp === undefined && width > 0 && width < NARROW) {
+      setSideOpen(false)
+      setTall(false)
+    }
+  }, [])
   const [hover, setHover] = useState<{ node?: string; edge?: string }>({})
   const [internalSelected, setSelected] = useState<string | null>(null)
   const selected = selectedNode === undefined ? internalSelected : selectedNode
@@ -407,19 +432,52 @@ function Level({
   // null means automatic: follow the action when the diagram is too big to read at once.
   const [follow, setFollow] = useState<boolean | null>(null)
 
-  const hasSide = scenarios.length > 0 || diagram.views.length > 1
+  // The tabs that come and go (a view may have no scenarios, a timeline needs one chosen) go last,
+  // so the ones before them never move: a click aimed at "Views" must not land on another tab
+  // because something appeared in front of it.
   const tabs: SideTab[] = [
+    'outline',
+    ...(diagram.views.length > 1 ? (['views'] as const) : []),
     ...(scenarios.length > 0 ? (['scenarios'] as const) : []),
     ...(scenario ? (['timeline'] as const) : []),
-    ...(diagram.views.length > 1 ? (['views'] as const) : []),
   ]
-  const tab = tabs.includes(tabState) ? tabState : (tabs[0] ?? 'scenarios')
+  const tab = tabs.includes(tabState) ? tabState : (tabs[0] ?? 'outline')
 
   // Nodes shown in place, as paths: `orders`, and `orders/stock` inside it. The author may have
   // asked for some to start that way.
   const [expanded, setExpanded] = useState<string[]>(() => defaultExpanded(diagram, diagrams ?? {}))
   const expandedSet = useMemo(() => new Set(expanded), [expanded])
   const reach: Diagrams = diagrams ?? NO_DIAGRAMS
+
+  // Phases the reader folded away. They belong to one scenario, and every presentation of it
+  // (the list of steps, the sequence, the story) folds the same ones.
+  const [phaseFold, setPhaseFold] = useState<{
+    scenario: string
+    folded: ReadonlySet<number>
+  } | null>(null)
+  const foldedPhases =
+    phaseFold && phaseFold.scenario === scenario?.id ? phaseFold.folded : NO_PHASES
+  const togglePhase = useCallback(
+    (phase: number) => {
+      if (!scenario) return
+      setPhaseFold((cur) => {
+        const next = new Set(cur?.scenario === scenario.id ? cur.folded : [])
+        if (!next.delete(phase)) next.add(phase)
+        return { scenario: scenario.id, folded: next }
+      })
+    },
+    [scenario],
+  )
+  const foldPhases = useCallback(
+    (fold: boolean) => {
+      if (!scenario) return
+      setPhaseFold({
+        scenario: scenario.id,
+        folded: new Set(fold ? scenario.phases.map((_, i) => i) : []),
+      })
+    },
+    [scenario],
+  )
 
   const { layout, nested, generation, error, measureRef } = useLayout(
     diagram,
@@ -479,7 +537,8 @@ function Level({
   const selectView = (id: string) => {
     setViewId(id)
     setScenarioId(null)
-    setTab('scenarios')
+    // Back to what to look at: the scenarios of the new view, or the views when it has none.
+    setTab(diagram.scenarios.some((sc) => sc.view === id) ? 'scenarios' : 'views')
     setSelected(null)
     setMode('flow')
   }
@@ -556,6 +615,11 @@ function Level({
   )
   const closeDrawer = useCallback(() => setSelected(null), [])
 
+  // Choosing a node from the outline, or from the drawer's list of connections: unlike a click on a
+  // card it selects even what is selected already, and the camera moves to the node.
+  const [locate, setLocate] = useState<{ path: string; n: number } | null>(null)
+  const located = useRef(0)
+
   // Show a node's diagram in place, or fold it back. The camera then moves to it once the new
   // layout is there: `after` is the layout the reader was looking at when they asked.
   const [reveal, setReveal] = useState<{
@@ -575,6 +639,7 @@ function Level({
   const toggleExpand = useCallback((path: string) => {
     // The card under the pointer is about to be replaced and will never say the pointer left it.
     setHover({})
+    setLocate(null)
     setExpanded((cur) => (cur.includes(path) ? cur.filter((p) => p !== path) : [...cur, path]))
     // A node that is folded away cannot stay selected.
     setSelected((cur) => (cur?.startsWith(`${path}/`) ? null : cur))
@@ -586,6 +651,21 @@ function Level({
     })
   }, [])
   const openPath = useCallback((path: string) => onOpen?.(path), [onOpen])
+  const stopFollowing = useCallback(() => setFollow(false), [])
+  const onPick = useCallback(
+    (id: string) => {
+      const top = !id.includes('/')
+      if (top) onNodeOpen?.(id)
+      if (onNodeSelect) {
+        if (top) onNodeSelect(id)
+      } else setSelected(id)
+      setReveal(null)
+      setLocate({ path: id, n: ++located.current })
+      // Asking to look somewhere is taking the camera: a scenario no longer pulls it away.
+      if (scenarioActive) stopFollowing()
+    },
+    [onNodeSelect, onNodeOpen, scenarioActive, stopFollowing],
+  )
 
   // What a reader may do with the diagram a node holds, said on the card before they do it.
   const canOpen = !!onOpen
@@ -706,8 +786,18 @@ function Level({
       anchor: reveal.from && here ? { from: reveal.from, to: here } : undefined,
     }
   }, [reveal, layout, nested, generation])
-  const camera = revealCamera ?? followCamera
-  const stopFollowing = useCallback(() => setFollow(false), [])
+  const locateCamera = useMemo<Focus | null>(() => {
+    if (!locate || !layout || !nested) return null
+    const rect = rectOfPath(nested, locate.path)
+    return rect ? { key: `locate:${locate.path}:${locate.n}`, rect, keep: true } : null
+  }, [locate, layout, nested])
+  // Both are one-shot: when the scenario moves on to its next step the camera is the scenario's.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the step is the trigger
+  useEffect(() => {
+    setReveal(null)
+    setLocate(null)
+  }, [stepIndex, scenarioId])
+  const camera = revealCamera ?? locateCamera ?? followCamera
 
   // The node the drawer is about: at the top, or inside a node shown in place.
   const target = useMemo(
@@ -718,8 +808,85 @@ function Level({
   const stateOf = useCallback((id: string) => edgeStates[id] ?? EMPTY, [edgeStates])
   const presentation = scenario ? mode : 'flow'
 
-  // What is happening, in words, while a scenario plays. On the picture it floats over the bottom
-  // edge; beside a sequence or a story it sticks to the bottom of the window.
+  // The tree of the view: groups, nodes, their connections, and what is shown inside a node.
+  const items = useMemo(
+    () => buildOutline(diagram, view, { diagrams: reach, expanded: expandedSet }),
+    [diagram, view, reach, expandedSet],
+  )
+  const outline = (
+    <Outline
+      items={items}
+      kinds={diagram.edgeKinds}
+      selected={selected}
+      hovered={hover.node ?? null}
+      onSelect={onPick}
+      onHoverNode={onHoverNode}
+      onHoverEdge={onHoverEdge}
+      onExpand={toggleExpand}
+      onOpen={canOpen ? openPath : undefined}
+    />
+  )
+
+  // The panel floats over the left of the picture. While it is open the picture is fitted to what
+  // is left; the frame is sized for it either way, so folding it does not make the page jump.
+  const reserve = PANEL_WIDTH + PANEL_GAP * 2
+  const inset = sideOpen ? reserve : 0
+  const panel = (
+    <Panel
+      diagram={diagram}
+      view={view}
+      scenarios={scenarios}
+      scenario={scenario}
+      onScenario={selectScenario}
+      onView={selectView}
+      tab={tab}
+      tabs={tabs}
+      onTab={setTab}
+      open={sideOpen}
+      onOpen={(open) => {
+        setSideOpen(open)
+        if (open) setTall(true)
+      }}
+      outline={outline}
+      player={player}
+      timeline={timeline}
+      mode={mode}
+      onMode={setMode}
+      stepIndex={stepIndex}
+      subtitles={subtitles}
+      onSubtitles={setSubtitles}
+      collapsed={foldedPhases}
+      onTogglePhase={togglePhase}
+      onFoldPhases={foldPhases}
+    />
+  )
+  const captions = scenario && (
+    <div className="idocs-toolbar-group">
+      {presentation === 'flow' && (
+        <button
+          type="button"
+          className="idocs-tool is-text"
+          aria-pressed={following}
+          onClick={() => setFollow(!following)}
+          title="Move the view to wherever the action is"
+        >
+          Follow
+        </button>
+      )}
+      <button
+        type="button"
+        className="idocs-tool is-text"
+        aria-pressed={subtitles}
+        onClick={() => setSubtitles(!subtitles)}
+        title={subtitles ? 'Turn the subtitles off' : 'Turn the subtitles on'}
+      >
+        CC
+      </button>
+    </div>
+  )
+
+  // What is happening, in words, while a scenario plays. It floats over the bottom edge of the
+  // viewport, whatever the scenario is shown as.
   const step = scenario && stepIndex >= 0 ? scenario.steps[stepIndex] : undefined
   const subtitle =
     subtitles && scenarioActive && step && scenario ? (
@@ -739,156 +906,130 @@ function Level({
         <div className="idocs-summary" dangerouslySetInnerHTML={{ __html: view.summaryHtml }} />
       )}
 
-      <div
-        className={cx(
-          'idocs-workspace',
-          hasSide && 'has-side',
-          hasSide && !sideOpen && 'is-folded',
-        )}
-      >
-        {hasSide && (
-          <Sidebar
-            diagram={diagram}
-            view={view}
-            scenarios={scenarios}
-            scenario={scenario}
-            onScenario={selectScenario}
-            onView={selectView}
-            tab={tab}
-            tabs={tabs}
-            onTab={setTab}
-            open={sideOpen}
-            onOpen={setSideOpen}
-            player={player}
-            timeline={timeline}
-            mode={mode}
-            onMode={setMode}
-            stepIndex={stepIndex}
-            subtitles={subtitles}
-            onSubtitles={setSubtitles}
-          />
-        )}
+      <div ref={workspaceRef} className="idocs-workspace">
+        {presentation === 'flow' && <Legend diagram={diagram} view={view} />}
 
-        <div className="idocs-stage">
-          {presentation === 'flow' && <Legend diagram={diagram} view={view} />}
-
-          {scenario && presentation === 'sequence' ? (
+        {scenario && presentation === 'sequence' ? (
+          <ScrollFrame
+            maxHeight={maxHeight}
+            fullscreen={fullscreen}
+            onToggleFullscreen={onToggleFullscreen}
+            tools={captions}
+            panel={panel}
+            inset={inset}
+            subtitle={subtitle}
+            current={stepIndex}
+          >
             <SequenceView
               diagram={diagram}
               scenario={scenario}
               current={stepIndex}
               onSeek={player.playStep}
+              collapsed={foldedPhases}
+              onTogglePhase={togglePhase}
             />
-          ) : scenario && presentation === 'story' ? (
+          </ScrollFrame>
+        ) : scenario && presentation === 'story' ? (
+          <ScrollFrame
+            maxHeight={maxHeight}
+            fullscreen={fullscreen}
+            onToggleFullscreen={onToggleFullscreen}
+            tools={captions}
+            panel={panel}
+            inset={inset}
+            subtitle={subtitle}
+            current={stepIndex}
+          >
             <StoryView
               diagram={diagram}
               scenario={scenario}
               current={stepIndex}
               ended={player.ended}
               onSeek={player.playStep}
+              collapsed={foldedPhases}
+              onTogglePhase={togglePhase}
             />
-          ) : layout ? (
-            <Canvas
+          </ScrollFrame>
+        ) : layout ? (
+          <Canvas
+            layout={layout}
+            maxHeight={maxHeight}
+            minHeight={tall ? 460 : 220}
+            fullscreen={fullscreen}
+            onToggleFullscreen={onToggleFullscreen}
+            onBackgroundClick={closeDrawer}
+            focus={camera}
+            onUserMove={stopFollowing}
+            subtitle={subtitle}
+            panel={panel}
+            inset={inset}
+            reserve={reserve}
+            insetRight={selected && target && !onNodeSelect ? DRAWER_WIDTH + 20 : 0}
+            tools={
+              <>
+                {captions}
+                {hasPlanned && (
+                  <div className="idocs-toolbar-group">
+                    <button
+                      type="button"
+                      className="idocs-tool is-text"
+                      aria-pressed={hidePlanned}
+                      onClick={() => setHidePlanned((v) => !v)}
+                      title="Hide items that are not built yet"
+                    >
+                      {hidePlanned ? 'Planned hidden' : 'Hide planned'}
+                    </button>
+                  </div>
+                )}
+              </>
+            }
+            overlay={
+              active &&
+              selected &&
+              target &&
+              !onNodeSelect && (
+                <Drawer
+                  diagram={target.diagram}
+                  view={target.view}
+                  nodeId={target.id}
+                  inside={insideOf(target.diagram.nodes[target.id]!, reach, canOpen)}
+                  peek={peekOf(target.diagram.nodes[target.id]!, reach)}
+                  expanded={expandedSet.has(selected)}
+                  onExpand={() => toggleExpand(selected)}
+                  onOpen={() => openPath(selected)}
+                  onClose={closeDrawer}
+                  onSelect={(id) => onPick(`${target.prefix}${id}`)}
+                />
+              )
+            }
+          >
+            <World
+              uid={uid}
+              diagram={diagram}
+              view={view}
               layout={layout}
-              maxHeight={maxHeight}
-              minHeight={hasSide && sideOpen ? 340 : 220}
-              fullscreen={fullscreen}
-              onToggleFullscreen={onToggleFullscreen}
-              onBackgroundClick={closeDrawer}
-              focus={camera}
-              onUserMove={stopFollowing}
-              subtitle={subtitle}
-              tools={
-                <>
-                  {scenario && (
-                    <div className="idocs-toolbar-group">
-                      <button
-                        type="button"
-                        className="idocs-tool is-text"
-                        aria-pressed={following}
-                        onClick={() => setFollow(!following)}
-                        title="Move the view to wherever the action is"
-                      >
-                        Follow
-                      </button>
-                      <button
-                        type="button"
-                        className="idocs-tool is-text"
-                        aria-pressed={subtitles}
-                        onClick={() => setSubtitles(!subtitles)}
-                        title={subtitles ? 'Turn the subtitles off' : 'Turn the subtitles on'}
-                      >
-                        CC
-                      </button>
-                    </div>
-                  )}
-                  {hasPlanned && (
-                    <div className="idocs-toolbar-group">
-                      <button
-                        type="button"
-                        className="idocs-tool is-text"
-                        aria-pressed={hidePlanned}
-                        onClick={() => setHidePlanned((v) => !v)}
-                        title="Hide items that are not built yet"
-                      >
-                        {hidePlanned ? 'Planned hidden' : 'Hide planned'}
-                      </button>
-                    </div>
-                  )}
-                </>
-              }
-              overlay={
-                active &&
-                selected &&
-                target &&
-                !onNodeSelect && (
-                  <Drawer
-                    diagram={target.diagram}
-                    view={target.view}
-                    nodeId={target.id}
-                    inside={insideOf(target.diagram.nodes[target.id]!, reach, canOpen)}
-                    peek={peekOf(target.diagram.nodes[target.id]!, reach)}
-                    expanded={expandedSet.has(selected)}
-                    onExpand={() => toggleExpand(selected)}
-                    onOpen={() => openPath(selected)}
-                    onClose={closeDrawer}
-                    onSelect={(id) => setSelected(`${target.prefix}${id}`)}
-                  />
-                )
-              }
-            >
-              <World
-                uid={uid}
-                diagram={diagram}
-                view={view}
-                layout={layout}
-                nodeFlags={nodeFlags}
-                stateOf={stateOf}
-                edgeStates={edgeStates}
-                register={register}
-                nested={nested}
-                diagrams={reach}
-                insides={insides}
-                selected={selected}
-                hidePlanned={hidePlanned}
-                onHoverNode={onHoverNode}
-                onHoverEdge={onHoverEdge}
-                onSelect={onSelect}
-                onToggle={toggleExpand}
-                onOpen={canOpen ? openPath : undefined}
-              />
-              {frame && scenarioActive && <Packets frame={frame} layout={layout} paths={paths} />}
-            </Canvas>
-          ) : (
-            <div className="idocs-frame idocs-skeleton">
-              {error ? <div className="idocs-error">{error}</div> : 'Loading diagram…'}
-            </div>
-          )}
-
-          {presentation !== 'flow' && subtitle && (
-            <div className="idocs-subtitles is-sticky">{subtitle}</div>
-          )}
-        </div>
+              nodeFlags={nodeFlags}
+              stateOf={stateOf}
+              edgeStates={edgeStates}
+              register={register}
+              nested={nested}
+              diagrams={reach}
+              insides={insides}
+              selected={selected}
+              hidePlanned={hidePlanned}
+              onHoverNode={onHoverNode}
+              onHoverEdge={onHoverEdge}
+              onSelect={onSelect}
+              onToggle={toggleExpand}
+              onOpen={canOpen ? openPath : undefined}
+            />
+            {frame && scenarioActive && <Packets frame={frame} layout={layout} paths={paths} />}
+          </Canvas>
+        ) : (
+          <div className="idocs-frame idocs-skeleton">
+            {error ? <div className="idocs-error">{error}</div> : 'Loading diagram…'}
+          </div>
+        )}
       </div>
 
       {view.interfaces && (
@@ -1017,8 +1158,9 @@ const World = memo(function World({
 })
 
 const NO_DIAGRAMS: Diagrams = {}
+const NO_PHASES: ReadonlySet<number> = new Set()
 
-/** The diagram a node holds, and the view to draw of it, for the side panel's picture. */
+/** The diagram a node holds, and the view to draw of it, for the drawer's picture. */
 function peekOf(node: CompiledNode, diagrams: Diagrams) {
   const ref = node.diagram
   const diagram = ref && diagrams[ref.name]

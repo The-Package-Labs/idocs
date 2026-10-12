@@ -173,7 +173,7 @@ describe('story view', () => {
     expect(await page.locator('.idocs-sbox.role-lookup').count()).toBe(6)
     expect(await page.locator('.idocs-sbox:not(.role-lookup)').count()).toBe(13)
     // The story in one breath is at the top of the timeline beside it.
-    expect(await page.locator('.idocs-side-summary').count()).toBe(1)
+    expect(await page.locator('.idocs-panel-summary').count()).toBe(1)
     // Connectors are measured from the real boxes, so they exist only once layout has settled.
     await page.waitForSelector('.idocs-slink')
     expect(await page.locator('.idocs-slink').count()).toBe(18)

@@ -36,7 +36,7 @@ Top-level keys: `title` (required), `description`, `nodes` (required), `groups`,
 | `links` | `- { label: Runbook, url: https://... }` |
 | `refs` | Source files or URLs the node is based on. `idocs check` warns when a path no longer exists. `src/api.ts`, `src/api.ts:40` and `src/api.ts#L40` all work. |
 | `tags` | Free-form tags. |
-| `diagram` | Name of another diagram (its folder under `diagrams/`) that shows the inside of this node: `diagram: payments`. The card gets **Expand** (show it in place, as a group around the whole inner diagram) and **Open** (move into it, with a trail and Back button). Clicking the node shows the inner diagram as a picture in the side panel. Long form: `diagram: { name: payments, view: refunds, scenario: pay, mode: both, expanded: false }`. See "Nested diagrams" below. |
+| `diagram` | Name of another diagram (its folder under `diagrams/`) that shows the inside of this node: `diagram: payments`. The card gets **Expand** (show it in place, as a group around the whole inner diagram) and **Open** (move into it, with a trail and Back button). Clicking the node shows the inner diagram as a picture in the drawer. Long form: `diagram: { name: payments, view: refunds, scenario: pay, mode: both, expanded: false }`. See "Nested diagrams" below. |
 
 Node kinds: `client user ui external service gateway worker container function database cache storage queue agent network vm auth monitor`. Add or override your own with a top-level `kinds:` map: `ledger: { icon: lucide:book-open, family: amber }`.
 

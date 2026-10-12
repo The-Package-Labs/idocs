@@ -2,8 +2,8 @@
 
 ## 0.3.0
 
-- Nested diagrams. A node with `diagram: <name>` shows **Expand** (the whole inner diagram in place, as a group) and **Open** (move into it, with a trail back) in the preview, and clicking it shows the diagram as a picture in the side panel; and the preview follows edits to the diagrams it holds.
-- The preview shows scenarios, timeline, views and player in a side panel beside the diagram, with subtitles over the picture, and dotted separators between the columns of the sequence and story views.
+- Nested diagrams. A node with `diagram: <name>` shows **Expand** (the whole inner diagram in place, as a group) and **Open** (move into it, with a trail back) in the preview, and clicking it shows the diagram as a picture in the drawer; and the preview follows edits to the diagrams it holds.
+- The preview has a panel over the diagram, inside the viewport, with the outline of nodes and connections, scenarios, timeline, views and player; phases of a scenario fold away; subtitles show over the picture; and the sequence and story views have dotted separators between their columns.
 - The viewer can be resized by dragging its bottom edge, and expanded to most of the window.
 - Problems for nodes that open a diagram that does not exist, or a view or scenario it does not have, or that lead back to themselves, as `idocs check` reports them.
 - Completion offers the other diagrams of the project after `diagram:`.

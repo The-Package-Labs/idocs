@@ -467,6 +467,10 @@ describe('expanding in place', () => {
         expect(a[0]! < b[2]! && a[2]! > b[0]! && a[1]! < b[3]! && a[3]! > b[1]!).toBe(false)
       }
     }
+    // The pointer rests where the card was, which may now be an inner card that is rightly lit.
+    // Park it on the panel, which lights nothing, so what is left is a hover the replaced card
+    // never took back.
+    await page.locator(`${ROOT} .idocs-panel-head`).hover()
     expect(
       await page.locator('.idocs[data-diagram="nest-shop"] [data-level="0"] .is-dim').count(),
     ).toBe(0)

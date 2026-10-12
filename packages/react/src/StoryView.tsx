@@ -2,12 +2,14 @@ import {
   buildStory,
   type CompiledDiagram,
   type CompiledScenario,
+  phaseSpans,
   roundedPath,
   STEP_KIND_COLORS,
   type StepKind,
   type StoryBox,
 } from '@the-package-labs/idocs-core'
 import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Chevron } from './Folding'
 import { Icon } from './Icon'
 import { colorVar, cx, roman } from './util'
 
@@ -18,6 +20,9 @@ interface Props {
   current: number
   ended: boolean
   onSeek: (index: number) => void
+  /** Phases (by index) the reader has folded away: a thin strip stands in for each. */
+  collapsed: ReadonlySet<number>
+  onTogglePhase: (phase: number) => void
 }
 
 interface Geometry {
@@ -30,6 +35,9 @@ interface Geometry {
 /** Let long paths and identifiers wrap after a slash, dot or underscore, not in the middle of a word. */
 const breakable = (text: string) => text.replace(/([/_.])(?=\w)/g, '$1\u200b')
 
+/** Height of the strip a folded phase becomes, in px. */
+const FOLDED_ROW = 36
+
 const LEGEND: Record<string, string> = {
   request: 'The request going out',
   response: 'The answer coming back',
@@ -38,7 +46,15 @@ const LEGEND: Record<string, string> = {
 }
 
 /** A scenario as swimlanes: lanes across, steps down, phases as bands. See core/story.ts. */
-export function StoryView({ diagram, scenario, current, ended, onSeek }: Props) {
+export function StoryView({
+  diagram,
+  scenario,
+  current,
+  ended,
+  onSeek,
+  collapsed,
+  onTogglePhase,
+}: Props) {
   const uid = useId().replace(/:/g, '')
   const story = useMemo(() => buildStory(diagram, scenario), [diagram, scenario])
   const gridRef = useRef<HTMLDivElement>(null)
@@ -46,22 +62,43 @@ export function StoryView({ diagram, scenario, current, ended, onSeek }: Props) 
   const headEls = useRef<(HTMLElement | null)[]>([])
   const [geo, setGeo] = useState<Geometry | null>(null)
 
-  // Grid rows: a header, then for each phase a little padding, its boxes, and padding again.
+  // Grid rows: a header, then for each phase a little padding, its boxes, and padding again. A
+  // phase the reader folded away is one thin row.
   const layout = useMemo(() => {
     const rowOf = new Map<number, number>()
     const bands: {
+      /** Position among the phases drawn, for the numeral and the zebra stripes. */
       index: number
+      /** Index in `scenario.phases`, which is what the reader folds by. */
+      phase: number
       from: number
       to: number
       title: string
       caption?: string
-      first: number
-      last: number
+      folded: boolean
+      steps: number
     }[] = []
     const template: string[] = ['auto']
     let cursor = 2
+    const spans = phaseSpans(scenario)
     story.phases.forEach((phase, i) => {
+      const folded = collapsed.has(phase.index)
+      const steps = spans.find((p) => p.index === phase.index)?.count ?? 0
       const from = cursor++
+      if (folded) {
+        template.push(`${FOLDED_ROW}px`)
+        bands.push({
+          index: i,
+          phase: phase.index,
+          from,
+          to: from,
+          title: phase.title,
+          caption: phase.caption,
+          folded,
+          steps,
+        })
+        return
+      }
       template.push('12px')
       for (let r = phase.rowStart; r <= phase.rowEnd; r++) {
         rowOf.set(r, cursor++)
@@ -71,16 +108,17 @@ export function StoryView({ diagram, scenario, current, ended, onSeek }: Props) 
       template.push('12px')
       bands.push({
         index: i,
+        phase: phase.index,
         from,
         to,
         title: phase.title,
         caption: phase.caption,
-        first: from,
-        last: to,
+        folded,
+        steps,
       })
     })
     return { rowOf, bands, template: template.join(' ') }
-  }, [story])
+  }, [story, scenario, collapsed])
 
   const cells = useMemo(() => {
     const map = new Map<string, StoryBox[]>()
@@ -93,6 +131,8 @@ export function StoryView({ diagram, scenario, current, ended, onSeek }: Props) 
       return { key, row, lane, boxes }
     })
   }, [story])
+  // Boxes of a folded phase are not drawn, and neither are the connectors that end on them.
+  const shown = useMemo(() => cells.filter((c) => layout.rowOf.has(c.row)), [cells, layout])
 
   const measure = useCallback(() => {
     const grid = gridRef.current
@@ -192,6 +232,7 @@ export function StoryView({ diagram, scenario, current, ended, onSeek }: Props) 
 
   // Connectors depend on where the browser put the boxes, so measure after layout, on resize and
   // once web fonts have arrived (text wraps differently).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: folding a phase changes which boxes exist
   useLayoutEffect(() => {
     measure()
     const grid = gridRef.current
@@ -200,7 +241,7 @@ export function StoryView({ diagram, scenario, current, ended, onSeek }: Props) 
     ro.observe(grid)
     void document.fonts?.ready.then(measure)
     return () => ro.disconnect()
-  }, [measure])
+  }, [measure, layout])
 
   const kinds = useMemo(() => [...new Set(story.links.map((l) => l.kind))], [story])
   const playing = current >= 0 || ended
@@ -258,22 +299,60 @@ export function StoryView({ diagram, scenario, current, ended, onSeek }: Props) 
             } as React.CSSProperties
           }
         >
-          {layout.bands.map((band) => (
-            <div key={`band-${band.index}`} style={{ display: 'contents' }}>
-              <div
-                className={cx('idocs-phase-band', band.index % 2 === 0 ? 'is-odd' : 'is-even')}
-                style={{ gridColumn: '1 / -1', gridRow: `${band.from} / ${band.to + 1}` }}
-              />
-              <div
-                className="idocs-phase-label"
-                style={{ gridColumn: 1, gridRow: `${band.from + 1} / ${band.to}` }}
-              >
+          {layout.bands.map((band) => {
+            const toggle = () => onTogglePhase(band.phase)
+            const here = scenario.steps[current]?.phase === band.phase
+            // The thin strip a folded phase becomes.
+            const head = (
+              <>
+                <Chevron open={false} />
                 <span className="idocs-phase-roman">{roman(band.index)}</span>
                 <span className="idocs-phase-name">{band.title}</span>
                 {band.caption && <span className="idocs-phase-cap">{band.caption}</span>}
+              </>
+            )
+            return (
+              <div key={`band-${band.phase}`} style={{ display: 'contents' }}>
+                <div
+                  className={cx('idocs-phase-band', band.index % 2 === 0 ? 'is-odd' : 'is-even')}
+                  style={{ gridColumn: '1 / -1', gridRow: `${band.from} / ${band.to + 1}` }}
+                />
+                {band.folded ? (
+                  <button
+                    type="button"
+                    className={cx('idocs-phase-label', 'is-strip', here && 'is-active')}
+                    style={{ gridColumn: '1 / -1', gridRow: band.from }}
+                    aria-expanded={false}
+                    title="Show this phase"
+                    onClick={toggle}
+                  >
+                    {head}
+                    <span className="idocs-phase-count">
+                      {band.steps} step{band.steps === 1 ? '' : 's'}
+                    </span>
+                  </button>
+                ) : (
+                  <div
+                    className="idocs-phase-label"
+                    style={{ gridColumn: 1, gridRow: `${band.from + 1} / ${band.to}` }}
+                  >
+                    <button
+                      type="button"
+                      className="idocs-phase-fold"
+                      aria-expanded
+                      title="Fold this phase away"
+                      onClick={toggle}
+                    >
+                      <Chevron open />
+                      <span className="idocs-phase-roman">{roman(band.index)}</span>
+                    </button>
+                    <span className="idocs-phase-name">{band.title}</span>
+                    {band.caption && <span className="idocs-phase-cap">{band.caption}</span>}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
 
           {story.lanes.map((lane) => (
             <div
@@ -302,7 +381,7 @@ export function StoryView({ diagram, scenario, current, ended, onSeek }: Props) 
             </div>
           ))}
 
-          {cells.map((cell) => (
+          {shown.map((cell) => (
             <div
               key={cell.key}
               className="idocs-story-cell"

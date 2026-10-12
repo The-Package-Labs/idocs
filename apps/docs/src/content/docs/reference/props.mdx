@@ -22,7 +22,7 @@ Imported from `@the-package-labs/idocs-astro/Diagram.astro`. See [the Diagram co
 | `showTitle` | boolean | `false` | Show the diagram's `title`. |
 | `showDescription` | boolean | `false` | Show the diagram's `description` above the first view. |
 | `hash` | boolean | `true` | Keep the scenario, step and opened nodes in the URL hash. |
-| `sidebar` | boolean | `true` | Start with the side panel (scenarios, timeline, views and the player) open. `false` starts it folded to a rail that keeps the play buttons; the reader can open it. |
+| `sidebar` | boolean | auto | Start with the panel over the picture (outline, scenarios, timeline, views and the player) open. Left out, it starts open when there is a scenario or another view to choose and the widget is wider than about 640 px. `false` starts it folded to a pill that keeps the play buttons; the reader can open it. |
 | `subtitles` | boolean | `true` | Write what the scenario is doing over the picture while it plays. The reader can turn them off with **CC**. |
 
 The component loads its interactive part with `client:visible`. Do not add a `client:` directive. The diagrams this one can open travel inside it, so [nested diagrams](../../format/nested-diagrams/) need nothing more.
@@ -42,7 +42,7 @@ Imported from `@the-package-labs/idocs-react`. The same component, for use outsi
 | `showTitle` | boolean | `false` | Show the diagram's title. |
 | `showDescription` | boolean | `false` | Show the diagram's description above the first view. |
 | `hash` | boolean | `true` | Keep the scenario, step and opened nodes in the URL hash so they can be shared. |
-| `sidebar` | boolean | `true` | Start with the side panel (scenarios, timeline, views and the player) open. `false` starts it folded to a rail that keeps the play buttons; the reader can open it. |
+| `sidebar` | boolean | auto | Start with the panel over the picture (outline, scenarios, timeline, views and the player) open. Left out, it starts open when there is a scenario or another view to choose and the widget is wider than about 640 px. `false` starts it folded to a pill that keeps the play buttons; the reader can open it. |
 | `subtitles` | boolean | `true` | Write what the scenario is doing over the picture while it plays. The reader can turn them off with **CC**. |
 | `className` | string | | An extra class on the root element. |
 | `onNodeSelect` | `(id: string) => void` | | Handle node clicks in your own inspector instead of the detail drawer. |

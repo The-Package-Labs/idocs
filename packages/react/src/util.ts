@@ -54,3 +54,20 @@ export function htmlText(html: string | undefined, max = 140): string {
     .trim()
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text
 }
+
+/**
+ * Scroll `box` just enough to bring `el` into view with a margin, and never anything else: a
+ * list that follows a player must not drag the page along (`scrollIntoView` does).
+ */
+export function keepInView(el: HTMLElement, box: HTMLElement, margin = 10): void {
+  const b = box.getBoundingClientRect()
+  const r = el.getBoundingClientRect()
+  const reduced =
+    typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
+  const to = (top: number) => box.scrollTo({ top, behavior: reduced ? 'auto' : 'smooth' })
+  if (r.top < b.top + margin) to(box.scrollTop + r.top - b.top - margin)
+  else if (r.bottom > b.bottom - margin) to(box.scrollTop + r.bottom - b.bottom + margin)
+}
+
+/** Under this width, in px, the panel has no room beside the picture and covers it instead. */
+export const NARROW = 640
