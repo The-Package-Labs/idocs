@@ -142,9 +142,10 @@ export const InlineDiagram = memo(function InlineDiagram({
           className="idocs-inline-act"
           onClick={() => toggle(path)}
           aria-label={`Collapse ${node.title}`}
-          title="Collapse"
+          title="Fold it back into one card"
         >
           <CollapseIcon />
+          <span>Collapse</span>
         </button>
         {inside.open && onOpen && (
           <button
@@ -152,9 +153,10 @@ export const InlineDiagram = memo(function InlineDiagram({
             className="idocs-inline-act"
             onClick={() => onOpen(path)}
             aria-label={`Open ${node.title}`}
-            title="Open, with a way back"
+            title="Move into it, with a way back"
           >
             <LayersIcon />
+            <span>Open</span>
           </button>
         )}
       </div>

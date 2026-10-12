@@ -1529,7 +1529,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 8px 5px;
+  gap: 6px;
+  padding: 6px 8px 7px;
   background: color-mix(in srgb, var(--idocs-accent) 7%, transparent);
   transition:
     background 0.15s,
@@ -1539,13 +1540,21 @@
   border-left: 1px solid color-mix(in srgb, var(--idocs-accent) 28%, var(--idocs-line));
 }
 .idocs-node-act svg {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   flex: none;
+}
+.idocs-node-inside-go {
+  font-size: 15px;
+  line-height: 1;
+  transition: transform 0.15s;
 }
 .idocs-node-act:hover {
   background: var(--idocs-accent);
   color: var(--idocs-surface);
+}
+.idocs-node-act:hover .idocs-node-inside-go {
+  transform: translateX(2px);
 }
 
 /* After coming back, the card that was opened pulses once so the eye finds its place. */
@@ -1853,19 +1862,22 @@
 .idocs-inline-act {
   appearance: none;
   flex: none;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
   border: 1px solid var(--idocs-line);
   border-radius: 7px;
   background: var(--idocs-surface);
   color: var(--idocs-muted);
+  font-size: 11.5px;
+  font-weight: 600;
   cursor: pointer;
 }
 .idocs-inline-act svg {
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
 }
 .idocs-inline-act:hover {
   border-color: var(--idocs-accent);
@@ -1878,4 +1890,43 @@
 }
 .idocs-inline-body {
   position: absolute;
+}
+
+/* ---------- resizing the viewer ---------- */
+
+/* The bottom edge of the frame is a splitter the reader can drag. */
+.idocs-resize {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 25;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  cursor: ns-resize;
+  touch-action: none;
+  outline: none;
+}
+.idocs-resize::after {
+  content: "";
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--idocs-line);
+  transition: background 0.15s;
+}
+.idocs-resize:hover::after,
+.idocs-resize:focus-visible::after,
+.idocs-frame.is-resizing .idocs-resize::after {
+  background: var(--idocs-accent);
+}
+.idocs-resize:focus-visible {
+  box-shadow: inset 0 -2px 0 var(--idocs-accent);
+}
+.idocs-frame.is-resizing {
+  cursor: ns-resize;
+}
+.idocs-frame.is-resizing .idocs-world {
+  pointer-events: none;
 }

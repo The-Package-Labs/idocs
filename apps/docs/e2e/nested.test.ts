@@ -403,17 +403,21 @@ describe('the side panel', () => {
     await close()
   })
 
-  it('draws the card strip and the group header with icons only', async () => {
+  it('says Expand and Open in words on the canvas, and uses icons only in the side panel', async () => {
     const { page, close } = await open()
     expect(await page.locator(`${card(0, 'orders')} [data-act]`).allTextContents()).toEqual([
-      '',
-      '',
+      'Expand',
+      'Open›',
     ])
     await page.click(expand(0, 'orders'))
     await page.waitForSelector(group('orders'))
     const head = page.locator(`${group('orders')} > .idocs-inline-head button.idocs-inline-act`)
-    expect(await head.allTextContents()).toEqual(['', ''])
+    expect(await head.allTextContents()).toEqual(['Collapse', 'Open'])
     expect(await head.evaluateAll(labels)).toEqual(['Collapse Order service', 'Open Order service'])
+    // In the panel the same two are icons, with names for the keyboard.
+    await page.click(`${group('orders')} .idocs-inline-title`)
+    await page.waitForSelector('.idocs-peek-head button')
+    expect(await page.locator('.idocs-peek-head button').allTextContents()).toEqual(['', ''])
     await close()
   })
 })
@@ -607,12 +611,10 @@ describe('expanding in place', () => {
     const second = page.locator('.idocs[data-diagram="nest-inline"]')
     await second.locator('[data-node="stock"][data-inline]').waitFor()
     expect(await second.locator('[data-node="stock/api"]').count()).toBe(1)
-    // Open only: no way to expand, so the strip has the one icon.
-    expect(
-      await second
-        .locator('[data-node="reports"] [data-act]')
-        .evaluateAll((els) => els.map((e) => e.getAttribute('data-act'))),
-    ).toEqual(['open'])
+    // Open only: no way to expand, so the strip has the one action, in words.
+    expect(await second.locator('[data-node="reports"] [data-act]').allTextContents()).toEqual([
+      'Look inside›',
+    ])
     expect(await second.locator('.idocs-drawer').count()).toBe(0)
     expect(problems).toEqual([])
     await close()

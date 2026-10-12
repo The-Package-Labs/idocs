@@ -6,6 +6,14 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { cx } from './util'
 
 const PAD = 28
+/** The shortest the reader can make the viewer, and the tallest, in px. */
+const MIN_HEIGHT = 220
+const MAX_HEIGHT = 3000
+/** How much of the window an expanded viewer takes. */
+const EXPANDED = 0.88
+/** What the arrow keys and Page Up/Down move the bottom edge by, in px. */
+const STEP = 24
+const PAGE = 120
 
 export interface Focus {
   /** Changes whenever the camera should move; the rect is what to bring into view. */
@@ -59,6 +67,17 @@ export function Canvas({
   const userMove = useRef(onUserMove)
   userMove.current = onUserMove
   const [width, setWidth] = useState(0)
+  // The reader's say over the height: a size they dragged to, or the whole of the window.
+  const [custom, setCustom] = useState<number | null>(null)
+  const [grown, setGrown] = useState(false)
+  const [resizing, setResizing] = useState(false)
+  const [windowHeight, setWindowHeight] = useState(0)
+  useEffect(() => {
+    const read = () => setWindowHeight(window.innerHeight)
+    read()
+    window.addEventListener('resize', read)
+    return () => window.removeEventListener('resize', read)
+  }, [])
 
   useEffect(() => {
     const el = frameRef.current
@@ -70,7 +89,9 @@ export function Canvas({
   }, [])
 
   const aspect = (layout.height + PAD * 2) / (layout.width + PAD * 2)
-  const height = Math.min(maxHeight, Math.max(300, Math.round(width * aspect)))
+  const auto = Math.min(maxHeight, Math.max(300, Math.round(width * aspect)))
+  const expandedHeight = Math.max(auto, Math.round(windowHeight * EXPANDED))
+  const height = custom ?? (grown ? expandedHeight : auto)
 
   useEffect(() => {
     const el = frameRef.current
@@ -84,7 +105,7 @@ export function Canvas({
         if (event.type === 'dblclick') return false
         if (event.type.startsWith('touch')) return (event as TouchEvent).touches.length >= 2
         if ((event as MouseEvent).button) return false
-        return !(event.target as Element).closest('.idocs-toolbar, .idocs-drawer')
+        return !(event.target as Element).closest('.idocs-toolbar, .idocs-drawer, .idocs-resize')
       })
       .on('zoom', (e) => {
         const t = e.transform
@@ -176,10 +197,25 @@ export function Canvas({
     userMove.current?.()
   }
 
+  const clampHeight = (h: number) => Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, Math.round(h)))
+  const setHeightBy = (h: number) => {
+    setGrown(false)
+    setCustom(clampHeight(h))
+  }
+  const toggleGrown = () => {
+    setCustom(null)
+    setGrown((g) => !g)
+    // Growing can push the bottom edge off screen: keep the viewer in sight.
+    requestAnimationFrame(() => frameRef.current?.scrollIntoView({ block: 'nearest' }))
+  }
+  const drag = useRef<{ y: number; h: number } | null>(null)
+  // The border box, which is what `height` sets: `clientHeight` leaves out the border.
+  const current = () => frameRef.current?.offsetHeight ?? height
+
   return (
     <div
       ref={frameRef}
-      className={cx('idocs-frame', 'idocs-ui')}
+      className={cx('idocs-frame', 'idocs-ui', resizing && 'is-resizing')}
       style={fullscreen ? undefined : { height }}
       onClick={(e) => {
         if (
@@ -187,7 +223,7 @@ export function Canvas({
           (e.target as Element).closest('.idocs-world') === worldRef.current
         ) {
           // A card, or the header of a node shown in place, is something to act on, not background.
-          if (!(e.target as Element).closest('.idocs-node, .idocs-inline-head'))
+          if (!(e.target as Element).closest('.idocs-node, .idocs-inline-head, .idocs-resize'))
             onBackgroundClick?.()
         }
       }}
@@ -254,6 +290,31 @@ export function Canvas({
               <path d="M2.5 5.5V3a.5.5 0 0 1 .5-.5h2.5M10.5 2.5H13a.5.5 0 0 1 .5.5v2.5M13.5 10.5V13a.5.5 0 0 1-.5.5h-2.5M5.5 13.5H3a.5.5 0 0 1-.5-.5v-2.5M6 6h4v4H6z" />
             </svg>
           </button>
+          {!fullscreen && (
+            <button
+              type="button"
+              className="idocs-tool"
+              title={grown ? 'Shrink the viewer' : 'Expand the viewer'}
+              aria-label={grown ? 'Shrink the viewer' : 'Expand the viewer'}
+              aria-pressed={grown}
+              onClick={toggleGrown}
+            >
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                {grown ? (
+                  <path d="M2.5 8h11M5.5 2.5 8 5l2.5-2.5M5.5 13.5 8 11l2.5 2.5" />
+                ) : (
+                  <path d="M8 2.5v11M5.5 5 8 2.5 10.5 5M5.5 11 8 13.5l2.5-2.5" />
+                )}
+              </svg>
+            </button>
+          )}
           {onToggleFullscreen && (
             <button
               type="button"
@@ -281,6 +342,58 @@ export function Canvas({
         </div>
       </div>
       {overlay}
+      {!fullscreen && (
+        // The bottom edge is a splitter: drag it, or use the arrow keys; double-click puts it back.
+        <div
+          className="idocs-resize"
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label="Resize the viewer"
+          aria-valuemin={MIN_HEIGHT}
+          aria-valuemax={MAX_HEIGHT}
+          aria-valuenow={height}
+          tabIndex={0}
+          title="Drag to resize, double-click to reset"
+          onPointerDown={(e) => {
+            e.preventDefault()
+            e.currentTarget.setPointerCapture(e.pointerId)
+            drag.current = { y: e.clientY, h: current() }
+            setResizing(true)
+          }}
+          onPointerMove={(e) => {
+            if (drag.current) setHeightBy(drag.current.h + e.clientY - drag.current.y)
+          }}
+          onPointerUp={() => {
+            drag.current = null
+            setResizing(false)
+          }}
+          onPointerCancel={() => {
+            drag.current = null
+            setResizing(false)
+          }}
+          onDoubleClick={() => {
+            setCustom(null)
+            setGrown(false)
+          }}
+          onKeyDown={(e) => {
+            const by: Record<string, number> = {
+              ArrowUp: -STEP,
+              ArrowDown: STEP,
+              PageUp: -PAGE,
+              PageDown: PAGE,
+            }
+            if (e.key in by) setHeightBy(current() + by[e.key]!)
+            else if (e.key === 'Home') setHeightBy(MIN_HEIGHT)
+            else if (e.key === 'End') setHeightBy(Math.max(MIN_HEIGHT, expandedHeight))
+            else if (e.key === 'Enter' || e.key === 'Escape') {
+              setCustom(null)
+              setGrown(false)
+              return
+            } else return
+            e.preventDefault()
+          }}
+        />
+      )}
     </div>
   )
 }

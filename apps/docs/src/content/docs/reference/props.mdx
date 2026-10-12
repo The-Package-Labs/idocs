@@ -18,7 +18,7 @@ Imported from `@the-package-labs/idocs-astro/Diagram.astro`. See [the Diagram co
 | `scenario` | string | | The scenario to select first. |
 | `mode` | `'flow' \| 'sequence' \| 'story'` | the scenario's `mode`, then `flow` | How the scenario is shown. |
 | `autoplay` | boolean | `false` | Play `scenario` as soon as the diagram is laid out. Ignored when the reader prefers reduced motion. |
-| `maxHeight` | number | `780` | The tallest the canvas may grow before it scrolls inside its frame, in pixels. The canvas is as tall as the diagram needs, between 300 px and this limit. |
+| `maxHeight` | number | `780` | The tallest the canvas may grow before it scrolls inside its frame, in pixels. The canvas is as tall as the diagram needs, between 300 px and this limit; the reader can still drag its bottom edge or expand it. |
 | `showTitle` | boolean | `false` | Show the diagram's `title`. |
 | `showDescription` | boolean | `false` | Show the diagram's `description` above the first view. |
 | `hash` | boolean | `true` | Keep the scenario, step and opened nodes in the URL hash. |

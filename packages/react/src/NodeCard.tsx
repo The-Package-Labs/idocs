@@ -210,17 +210,16 @@ export const NodeCard = memo(function NodeCard({
       {inside && (
         <div className="idocs-node-inside" title={`${insideSummary(inside)}`} aria-hidden="true">
           {inside.expand && (
-            <span className="idocs-node-act" data-act="expand" title="Expand here, as a group">
+            <span className="idocs-node-act" data-act="expand" title="Show it here, as a group">
               <ExpandIcon />
+              <span>Expand</span>
             </span>
           )}
           {inside.open && (
-            <span
-              className="idocs-node-act"
-              data-act="open"
-              title={inside.expand ? 'Open, with a way back' : 'Look inside, with a way back'}
-            >
+            <span className="idocs-node-act" data-act="open" title="Move into it, with a way back">
               <LayersIcon />
+              <span>{inside.expand ? 'Open' : 'Look inside'}</span>
+              <span className="idocs-node-inside-go">›</span>
             </span>
           )}
         </div>

@@ -2,7 +2,8 @@
 
 ## 0.3.0
 
-- Nested diagrams. A node with `diagram: <name>` shows two icon buttons in the preview, to expand the whole inner diagram in place as a group and to open it with a trail back, and clicking it shows the diagram as a picture in the side panel; and the preview follows edits to the diagrams it holds.
+- Nested diagrams. A node with `diagram: <name>` shows **Expand** (the whole inner diagram in place, as a group) and **Open** (move into it, with a trail back) in the preview, and clicking it shows the diagram as a picture in the side panel; and the preview follows edits to the diagrams it holds.
+- The viewer can be resized by dragging its bottom edge, and expanded to most of the window.
 - Problems for nodes that open a diagram that does not exist, or a view or scenario it does not have, or that lead back to themselves, as `idocs check` reports them.
 - Completion offers the other diagrams of the project after `diagram:`.
 
