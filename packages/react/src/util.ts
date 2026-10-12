@@ -33,3 +33,24 @@ const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI'
 export function roman(n: number): string {
   return ROMAN[n] ?? String(n + 1)
 }
+
+const ENTITIES: Record<string, string> = {
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#39;': "'",
+  '&nbsp;': ' ',
+}
+
+/** The words of compiled Markdown, for a short blurb. No DOM, so it also runs while rendering on the server. */
+export function htmlText(html: string | undefined, max = 140): string {
+  const text = (html ?? '')
+    // Block ends are word breaks; inline tags (a bold word before a comma) must not add a space.
+    .replace(/<\/(?:p|li|h[1-6]|div|tr|ul|ol)>|<br\s*\/?>/g, ' ')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&(?:amp|lt|gt|quot|#39|nbsp);/g, (e) => ENTITIES[e] ?? e)
+    .replace(/\s+/g, ' ')
+    .trim()
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text
+}

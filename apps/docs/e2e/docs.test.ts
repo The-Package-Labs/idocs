@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { type Browser, chromium } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { serve } from '../../../scripts/static-server.mjs'
+import { pick } from './panel'
 
 const PORT = 4503
 const BASE = `http://localhost:${PORT}`
@@ -80,7 +81,7 @@ describe('documentation navigation', () => {
     const { page, problems, close } = await open('/scenarios/steps/')
     await page.waitForSelector('[data-node]')
     expect(await page.locator('[data-node]').count()).toBe(7)
-    await page.click('.idocs-chip-btn:has-text("Parallel steps")')
+    await pick(page, 'Parallel steps')
     await page.waitForSelector('.idocs-packet', { state: 'attached', timeout: 10_000 })
     expect(problems).toEqual([])
     await close()

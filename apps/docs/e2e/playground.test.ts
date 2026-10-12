@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { type Browser, chromium, type Page } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { serve } from '../../../scripts/static-server.mjs'
+import { pick } from './panel'
 
 const PORT = 4504
 const BASE = `http://localhost:${PORT}`
@@ -153,7 +154,7 @@ describe('playground', () => {
   it('supports scenario playback and recovers from empty source', async () => {
     const { page, problems, close } = await open()
     await page.getByLabel('Example diagram').selectOption('scenario')
-    await page.getByRole('button', { name: 'Read a profile', exact: true }).click()
+    await pick(page, 'Read a profile')
     await page.waitForSelector('.idocs-player')
     await editor(page).fill('')
     await page.waitForSelector('.pg-diagnostic.pg-error')

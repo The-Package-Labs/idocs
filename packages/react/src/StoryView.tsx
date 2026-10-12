@@ -102,11 +102,20 @@ export function StoryView({ diagram, scenario, current, ended, onSeek }: Props) 
       const r = el.getBoundingClientRect()
       return { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height }
     }
-    const lifelines = headEls.current.flatMap((el) => {
-      if (!el) return []
-      const r = rect(el)
-      return [{ x: r.x + r.w / 2, y1: r.y + r.h, y2: base.height - 6 }]
-    })
+    // Separators run between the lanes, and at the two outer edges, so each column is closed on
+    // both sides and it is clear which lane a box falls in. Through the middle they would look like
+    // a lane's own line, and would run behind its boxes.
+    const heads = headEls.current.flatMap((el) => (el ? [rect(el)] : []))
+    const lifelines: Geometry['lifelines'] = []
+    if (heads.length) {
+      const gap = heads.length > 1 ? Math.max(8, heads[1]!.x - (heads[0]!.x + heads[0]!.w)) : 12
+      const edges = [
+        heads[0]!.x - gap / 2,
+        ...heads.slice(1).map((h, i) => (heads[i]!.x + heads[i]!.w + h.x) / 2),
+        heads[heads.length - 1]!.x + heads[heads.length - 1]!.w + gap / 2,
+      ]
+      for (const x of edges) lifelines.push({ x, y1: heads[0]!.y, y2: base.height - 6 })
+    }
     // Where each story row starts and ends, counting lookup boxes stacked beside the main one, so
     // connectors turn in the gap between rows and never behind a box.
     const rowTop = new Map<number, number>()
@@ -367,7 +376,7 @@ export function StoryView({ diagram, scenario, current, ended, onSeek }: Props) 
                 ))}
               </defs>
               {geo.lifelines.map((l) => (
-                <line key={l.x} className="idocs-lifeline" x1={l.x} x2={l.x} y1={l.y1} y2={l.y2} />
+                <line key={l.x} className="idocs-lane-sep" x1={l.x} x2={l.x} y1={l.y1} y2={l.y2} />
               ))}
               {geo.links.map((l) => {
                 const color = colorVar(

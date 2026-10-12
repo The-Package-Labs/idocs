@@ -10,6 +10,8 @@ Versions up to 0.2.0 were published as `@packagelab/docspp-react`.
   
   `idocs check` now also checks across diagrams: a diagram that does not exist, a view or scenario it does not have, and diagrams that open each other in a circle, each at the line that wrote it. `idocs list` shows what opens what. A compiled diagram carries the diagrams it can open, as `nested`, so `<Diagram>` and `DiagramView` need no extra setup; core exports `attachNested`, `nestedDiagrams` and `linkDiagrams`.
 
+- The scenarios, the timeline of the one playing, the views and the player now live in a side panel beside the picture, in tabs, instead of being stacked above and below it. The panel folds to a rail that keeps the play buttons, stacks above the picture when the widget is narrow, and can start folded with `sidebar={false}`. The sequence and story views draw dotted separators between their columns instead of a line through the middle of each. While a scenario plays, subtitles write out the step over the picture; they are on by default and `subtitles={false}` turns them off.
+
 - The viewer can be resized in the page: drag its bottom edge (or use the arrow keys when it is focused; double-click resets it), and an **Expand the viewer** button makes it most of the window's height, without leaving the page.
 
 ### Patch Changes

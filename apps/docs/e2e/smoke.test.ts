@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { type Browser, chromium, type Page } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { serve } from '../../../scripts/static-server.mjs'
+import { chosen, pick, pickView } from './panel'
 
 const PORT = 4501
 const BASE = `http://localhost:${PORT}`
@@ -52,7 +53,7 @@ describe('checkout example', () => {
 
   it('plays a scenario: packets fly, the step list follows, the hash is shareable', async () => {
     const { page, problems, close } = await open('/examples/checkout/')
-    await page.click('.idocs-chip-btn:has-text("Place an order")')
+    await pick(page, 'Place an order')
     await page.waitForSelector('.idocs-packet', { state: 'attached', timeout: 5000 })
     await page.waitForSelector('.idocs-step.is-active')
     await page.waitForFunction(
@@ -68,7 +69,7 @@ describe('checkout example', () => {
 
   it('steps with next and previous, and jumps by clicking a step', async () => {
     const { page, close } = await open('/examples/checkout/')
-    await page.click('.idocs-chip-btn:has-text("Browse a product (cache hit)")')
+    await pick(page, 'Browse a product (cache hit)')
     await page.click('.idocs-btn.is-primary') // pause
     await page.waitForTimeout(150)
     // Paused mid-step: the first Next finishes that step, the second plays the one after it.
@@ -91,7 +92,7 @@ describe('checkout example', () => {
 
   it('shows the sequence view for the same scenario', async () => {
     const { page, close } = await open('/examples/checkout/')
-    await page.click('.idocs-chip-btn:has-text("Card declined")')
+    await pick(page, 'Card declined')
     await page.click('.idocs-modes button:has-text("Sequence")')
     await page.waitForSelector('.idocs-seq svg')
     const rows = await page.locator('.idocs-seq .seq-row').count()
@@ -124,17 +125,15 @@ describe('checkout example', () => {
   it('restores a scenario and step from the URL', async () => {
     const { page, close } = await open('/examples/checkout/#checkout=place-order.3')
     await page.waitForSelector('.idocs-step.is-active')
-    expect(await page.locator('.idocs-chip-btn[aria-pressed="true"]').textContent()).toContain(
-      'Place an order',
-    )
     expect(Number(await stepActive(page).first().textContent())).toBe(3)
+    expect(await chosen(page)).toBe('Place an order')
     await close()
   })
 
   it('switches views from the tabs', async () => {
     const { page, close } = await open('/examples/checkout/')
     const before = await page.locator('[data-node]').count()
-    await page.click('.idocs-tab:has-text("Backend only")')
+    await pickView(page, 'Backend only')
     await page.waitForFunction((n) => document.querySelectorAll('[data-node]').length < n, before)
     await close()
   })
@@ -167,13 +166,14 @@ describe('checkout example', () => {
 describe('story view', () => {
   it('opens a scenario written with mode: story as swimlanes, grouped into the lanes it declares', async () => {
     const { page, problems, close } = await open('/examples/platform/')
-    await page.click('.idocs-chip-btn:has-text("One read request")')
+    await pick(page, 'One read request')
     await page.waitForSelector('.idocs-story-grid')
     expect(await page.locator('.idocs-lane-head').count()).toBe(8)
     expect(await page.locator('.idocs-phase-label').count()).toBe(5)
     expect(await page.locator('.idocs-sbox.role-lookup').count()).toBe(6)
     expect(await page.locator('.idocs-sbox:not(.role-lookup)').count()).toBe(13)
-    expect(await page.locator('.idocs-story-summary, .idocs-summary.is-card').count()).toBe(1)
+    // The story in one breath is at the top of the timeline beside it.
+    expect(await page.locator('.idocs-side-summary').count()).toBe(1)
     // Connectors are measured from the real boxes, so they exist only once layout has settled.
     await page.waitForSelector('.idocs-slink')
     expect(await page.locator('.idocs-slink').count()).toBe(18)
@@ -183,7 +183,7 @@ describe('story view', () => {
 
   it('shows any scenario as a story, with lanes taken from the nodes involved', async () => {
     const { page, close } = await open('/examples/checkout/')
-    await page.click('.idocs-chip-btn:has-text("Place an order")')
+    await pick(page, 'Place an order')
     await page.click('.idocs-modes button:has-text("Story")')
     await page.waitForSelector('.idocs-story-grid')
     expect(await page.locator('.idocs-lane-head').count()).toBe(6)
@@ -195,7 +195,7 @@ describe('story view', () => {
 
   it('plays the clicked step and keeps the step list in step', async () => {
     const { page, close } = await open('/examples/checkout/')
-    await page.click('.idocs-chip-btn:has-text("Place an order")')
+    await pick(page, 'Place an order')
     await page.click('.idocs-modes button:has-text("Story")')
     await page.waitForSelector('.idocs-story-grid')
     await page.click('.idocs-sbox:has-text("create payment intent")')
@@ -223,7 +223,7 @@ describe('platform example', () => {
     const { page, problems, close } = await open('/examples/platform/')
     expect(await page.locator('[data-node]').count()).toBe(37)
     expect(await page.locator('.idocs-zone').count()).toBe(9)
-    await page.click('.idocs-chip-btn:has-text("Dispatch a job to a device")')
+    await pick(page, 'Dispatch a job to a device')
     await page.selectOption('.idocs-player select', '2')
     await page.waitForFunction(
       () => document.querySelector('.idocs-btn.is-primary')?.textContent?.includes('Replay'),
@@ -239,7 +239,7 @@ describe('platform example', () => {
     const before = await page
       .locator('.idocs-world')
       .evaluate((el) => (el as HTMLElement).style.transform)
-    await page.click('.idocs-chip-btn:has-text("Device is offline")')
+    await pick(page, 'Device is offline')
     await page.waitForTimeout(2500)
     const during = await page
       .locator('.idocs-world')

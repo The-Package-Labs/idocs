@@ -23,7 +23,7 @@ steps:
 
 <Diagram name="ref-steps" scenario="parallel" />
 
-Both packets leave `api` at the same moment. In the step list the two steps are numbered separately. `par` holds flow steps and self steps; nesting a `par` inside a `par` is not allowed.
+Both packets leave `api` at the same moment. In the timeline the two steps are numbered separately. `par` holds flow steps and self steps; nesting a `par` inside a `par` is not allowed.
 
 ## Routes
 
@@ -35,7 +35,7 @@ You do not have to declare every hop. If there is no direct edge between the two
 
 <Diagram name="ref-steps" scenario="route" />
 
-The step list says which nodes a packet passed through: "via Gateway, API". Routing follows these rules:
+The timeline says which nodes a packet passed through: "via Gateway, API". Routing follows these rules:
 
 - A route may use an edge **against** its direction. That is how responses find their way back, and it is why `db -> browser` works even though no edge points that way.
 - Forward hops are slightly preferred over reverse ones, so a route that can follow the arrows will. A two-way edge (`<->`) costs the same in both directions.

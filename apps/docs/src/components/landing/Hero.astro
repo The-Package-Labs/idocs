@@ -85,7 +85,14 @@ const iwords = [
         <span class="lp-hint">The real thing, not a screenshot. Click a box, expand a card, switch a view.</span>
       </div>
       <div class="lp-stage-body">
-        <Diagram name="showcase" scenario="order" autoplay hash={false} maxHeight={560} />
+        <Diagram
+          name="showcase"
+          scenario="order"
+          autoplay
+          hash={false}
+          sidebar={false}
+          maxHeight={560}
+        />
       </div>
       <ul class="lp-try" aria-label="Things to try in the diagram above">
         <li><Icon name="lucide:mouse-pointer-click" /><span><b>Click a box</b> for its docs and a picture of what is inside</span></li>

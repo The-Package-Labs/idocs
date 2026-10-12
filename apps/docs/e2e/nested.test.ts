@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { type Browser, chromium, type Page } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { serve } from '../../../scripts/static-server.mjs'
+import { chosen, pick, scenarioTitles } from './panel'
 
 const PORT = 4505
 const BASE = `http://localhost:${PORT}`
@@ -58,7 +59,14 @@ const crumbs = (page: Page) =>
 const where = (page: Page, selector: string) =>
   page.locator(selector).evaluate((el) => {
     const r = el.getBoundingClientRect()
-    return [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)]
+    // Relative to the picture it is in, so scrolling the page does not count as moving.
+    const frame = el.closest('.idocs-frame')?.getBoundingClientRect()
+    return [
+      Math.round(r.x - (frame?.x ?? 0)),
+      Math.round(r.y - (frame?.y ?? 0)),
+      Math.round(r.width),
+      Math.round(r.height),
+    ]
   })
 
 /** Records the camera, and where the `orders` node is on screen, on every frame from now on. */
@@ -196,11 +204,8 @@ describe('looking inside and coming back', () => {
     await page.click(strip(0, 'orders'))
     await page.waitForSelector(`${level(1)}:not([hidden]) [data-node]`)
     // The inner diagram has scenarios of its own, and none of them is the parent's.
-    expect(await page.locator(`${level(1)} .idocs-chip-btn`).allTextContents()).toEqual([
-      'Overview',
-      'Create an order',
-    ])
-    await page.click(`${level(1)} .idocs-chip-btn:has-text("Create an order")`)
+    expect(await scenarioTitles(page, level(1))).toEqual(['Overview', 'Create an order'])
+    await pick(page, 'Create an order', level(1))
     await page.waitForSelector(`${level(1)} .idocs-step.is-active`)
     await page.click('.idocs-trail-back')
     await page.waitForSelector(`${level(0)}:not([hidden])`)
@@ -209,9 +214,7 @@ describe('looking inside and coming back', () => {
     expect(
       await page.locator(`${level(0)} .idocs-step.is-active .idocs-step-n`).textContent(),
     ).toBe('3')
-    expect(
-      await page.locator(`${level(0)} .idocs-chip-btn[aria-pressed="true"]`).textContent(),
-    ).toBe('Place an order')
+    expect(await chosen(page, level(0))).toBe('Place an order')
     // It was not laid out again while hidden: nothing moved.
     expect(await where(page, card(0, 'orders'))).toEqual(before)
     // And the card that was opened pulses so the eye finds it.
@@ -221,7 +224,7 @@ describe('looking inside and coming back', () => {
 
   it('pauses what was playing in the parent while the reader is inside', async () => {
     const { page, close } = await open()
-    await page.click(`${level(0)} .idocs-chip-btn:has-text("Place an order")`)
+    await pick(page, 'Place an order', level(0))
     await page.waitForSelector(`${level(0)} .idocs-packet`, { state: 'attached' })
     await page.click(strip(0, 'orders'))
     await page.waitForSelector(`${level(1)}:not([hidden]) [data-node]`)
@@ -247,9 +250,7 @@ describe('the drawer', () => {
     await page.keyboard.press('Enter')
 
     await page.waitForSelector(`${level(1)}:not([hidden]) [data-node="stripe"]`)
-    expect(
-      await page.locator(`${level(1)} .idocs-chip-btn[aria-pressed="true"]`).textContent(),
-    ).toBe('Pay with a card')
+    expect(await chosen(page, level(1))).toBe('Pay with a card')
     // Not playing yet: the reader decides.
     expect(await page.locator(`${level(1)} .idocs-packet`).count()).toBe(0)
 
@@ -316,7 +317,7 @@ describe('links', () => {
     const { page, close } = await open()
     await page.click(strip(0, 'orders'))
     await page.waitForSelector(`${level(1)}:not([hidden]) [data-node]`)
-    await page.click(`${level(1)} .idocs-chip-btn:has-text("Create an order")`)
+    await pick(page, 'Create an order', level(1))
     await page.waitForFunction(() => location.hash.includes('nest-shop/nest-orders=create'))
     expect(await hash(page)).toContain('#nest-shop~=orders')
     await close()
@@ -671,7 +672,7 @@ describe('expanding in place', () => {
     const { page, close } = await open()
     await page.click(expand(0, 'orders'))
     await page.waitForSelector(group('orders'))
-    await page.click(`${level(0)} .idocs-chip-btn:has-text("Place an order")`)
+    await pick(page, 'Place an order', level(0))
     await page.waitForSelector(`${level(0)} .idocs-packet`, { state: 'attached' })
     await page.waitForFunction(
       () =>

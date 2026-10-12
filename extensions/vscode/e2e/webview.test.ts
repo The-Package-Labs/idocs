@@ -211,13 +211,16 @@ describe('preview webview', () => {
     await h.post(message(diagram))
     await h.page.waitForSelector('[data-node="api"]')
     await h.page.getByRole('button', { name: diagram.scenarios[0]!.title }).click()
-    await h.page.waitForSelector('.idocs-player, [aria-label="Playback"]')
+    await h.page.waitForSelector('.idocs-player')
     const edited = structuredClone(diagram)
     edited.nodes.api!.title = 'Renamed API'
     await h.post(message(edited))
     await h.page
       .locator('[data-node="api"] .idocs-node-title', { hasText: 'Renamed API' })
       .waitFor()
+    // The timeline of the chosen scenario is still up, and the scenario is still the pressed card.
+    await h.page.waitForSelector('.idocs-step.is-active, .idocs-steps')
+    await h.page.getByRole('tab', { name: 'Scenarios' }).click()
     expect(
       await h.page
         .getByRole('button', { name: diagram.scenarios[0]!.title })

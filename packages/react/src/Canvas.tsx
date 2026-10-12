@@ -37,6 +37,10 @@ interface Props {
   children: React.ReactNode
   /** Rendered over the frame, untransformed (drawer). */
   overlay?: React.ReactNode
+  /** Words over the bottom of the frame, centred: what the scenario is doing right now. */
+  subtitle?: React.ReactNode
+  /** The shortest the frame may be, however it is sized, in px. Default 220. */
+  minHeight?: number
   tools?: React.ReactNode
   onBackgroundClick?: () => void
   /** When set, the camera glides to this rectangle whenever its key changes. */
@@ -52,6 +56,8 @@ export function Canvas({
   onToggleFullscreen,
   children,
   overlay,
+  subtitle,
+  minHeight = MIN_HEIGHT,
   tools,
   onBackgroundClick,
   focus,
@@ -89,7 +95,7 @@ export function Canvas({
   }, [])
 
   const aspect = (layout.height + PAD * 2) / (layout.width + PAD * 2)
-  const auto = Math.min(maxHeight, Math.max(300, Math.round(width * aspect)))
+  const auto = Math.min(maxHeight, Math.max(Math.max(300, minHeight), Math.round(width * aspect)))
   const expandedHeight = Math.max(auto, Math.round(windowHeight * EXPANDED))
   const height = custom ?? (grown ? expandedHeight : auto)
 
@@ -197,7 +203,7 @@ export function Canvas({
     userMove.current?.()
   }
 
-  const clampHeight = (h: number) => Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, Math.round(h)))
+  const clampHeight = (h: number) => Math.min(MAX_HEIGHT, Math.max(minHeight, Math.round(h)))
   const setHeightBy = (h: number) => {
     setGrown(false)
     setCustom(clampHeight(h))
@@ -341,6 +347,7 @@ export function Canvas({
           )}
         </div>
       </div>
+      {subtitle && <div className="idocs-subtitles">{subtitle}</div>}
       {overlay}
       {!fullscreen && (
         // The bottom edge is a splitter: drag it, or use the arrow keys; double-click puts it back.
@@ -349,7 +356,7 @@ export function Canvas({
           role="separator"
           aria-orientation="horizontal"
           aria-label="Resize the viewer"
-          aria-valuemin={MIN_HEIGHT}
+          aria-valuemin={minHeight}
           aria-valuemax={MAX_HEIGHT}
           aria-valuenow={height}
           tabIndex={0}
@@ -383,8 +390,8 @@ export function Canvas({
               PageDown: PAGE,
             }
             if (e.key in by) setHeightBy(current() + by[e.key]!)
-            else if (e.key === 'Home') setHeightBy(MIN_HEIGHT)
-            else if (e.key === 'End') setHeightBy(Math.max(MIN_HEIGHT, expandedHeight))
+            else if (e.key === 'Home') setHeightBy(minHeight)
+            else if (e.key === 'End') setHeightBy(Math.max(minHeight, expandedHeight))
             else if (e.key === 'Enter' || e.key === 'Escape') {
               setCustom(null)
               setGrown(false)

@@ -82,12 +82,15 @@ export function SequenceView({ diagram, scenario, current, onSeek }: Props) {
         role="img"
         aria-label={`Sequence diagram: ${scenario.title}`}
       >
-        {actors.map((id) => (
+        {/* Dotted separators between the columns, not through the middle of them, so it is clear which
+            column a header and the arrows below it belong to. */}
+        {Array.from({ length: actors.length + 1 }, (_, k) => (
           <line
-            key={id}
-            x1={x(id)}
-            x2={x(id)}
-            y1={64}
+            key={`sep${actors[k] ?? 'end'}`}
+            className="seq-sep"
+            x1={LEFT + k * COL}
+            x2={LEFT + k * COL}
+            y1={6}
             y2={height - 6}
             stroke="var(--idocs-line)"
             strokeWidth="1.3"

@@ -34,7 +34,7 @@ const stages = [
     src: clean(playSrc),
     scenario: 'upload',
     caption:
-      '<strong>Tell the story as steps.</strong> A packet flies along your edges, hop by hop, and every step is listed under the picture. Pause, scrub, or click a step to jump to it.',
+      '<strong>Tell the story as steps.</strong> A packet flies along your edges, hop by hop, and every step is listed beside the picture. Pause, scrub, or click a step to jump to it.',
   },
   {
     id: 'views',
@@ -107,6 +107,7 @@ const stages = [
                       scenario={s.scenario}
                       autoplay={!!s.scenario}
                       hash={false}
+                      sidebar={false}
                       maxHeight={480}
                     />
                   </div>

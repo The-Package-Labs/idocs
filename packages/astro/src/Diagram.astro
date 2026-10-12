@@ -20,6 +20,10 @@ interface Props {
   autoplay?: boolean
   /** Keep the scenario, step and opened nodes in the URL hash (default true). Turn off for decorative embeds. */
   hash?: boolean
+  /** Start with the side panel (scenarios, timeline, views, player) open. Default true; a reader can still open it. */
+  sidebar?: boolean
+  /** Words over the picture saying what the scenario is doing. Default true. */
+  subtitles?: boolean
 }
 
 const { name, ...props } = Astro.props

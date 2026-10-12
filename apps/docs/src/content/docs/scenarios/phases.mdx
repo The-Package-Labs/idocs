@@ -7,7 +7,7 @@ tableOfContents:
 
 import Diagram from '@the-package-labs/idocs-astro/Diagram.astro'
 
-A long scenario is easier to follow when it is broken into **phases**: "Record it", "Charge the card", "Finish". Phases appear as numbered bands in the step list, as sections in the sequence diagram and as horizontal bands in the story view.
+A long scenario is easier to follow when it is broken into **phases**: "Record it", "Charge the card", "Finish". Phases appear as numbered bands in the timeline, as sections in the sequence diagram and as horizontal bands in the story view.
 
 <Diagram name="payments" scenario="pay" />
 
@@ -45,15 +45,15 @@ A phase has a `title`, an optional `caption` and its `steps`.
 | `caption` | A short note shown after the title: "before any money moves". |
 | `steps` | **Required.** At least one step. |
 
-Aim for two to five phases. A scenario may use `steps:` or `phases:`. Without phases, the step list is flat and no bands are drawn.
+Aim for two to five phases. A scenario may use `steps:` or `phases:`. Without phases, the timeline is flat and no bands are drawn.
 
 ## Summary
 
-`summary` is Markdown shown above the diagram when the scenario is selected. Write the story in a sentence or two, with the one fact that matters in bold. In the story view it is framed as "The story in one breath".
+`summary` is Markdown shown at the top of the timeline when the scenario is selected. Write the story in a sentence or two, with the one fact that matters in bold. In the story view it is framed as "The story in one breath".
 
 ## Notes
 
-`note` is Markdown shown under the step in the step list. Use it for the *why*:
+`note` is Markdown shown under the step in the timeline. Use it for the *why*:
 
 ```yaml
 - browser -> orders:

@@ -30,7 +30,7 @@ Architecture diagrams go stale because they are pictures. idocs keeps the system
 
 - **Playground.** Write YAML with a live preview, or build nodes, groups and connections visually and export the YAML. Local drafts, undo/redo and examples included.
 - **Declarative.** Nodes, groups and edges in `diagram.yaml`. No coordinates: layout is automatic and steerable with a few hints.
-- **Scenarios.** Any number per diagram: the happy path, a cache miss, a declined card. Each plays as packets over the architecture, as a sequence diagram, or as a swimlane story, with a step list, scrubbing, speed control and shareable deep links.
+- **Scenarios.** Any number per diagram: the happy path, a cache miss, a declined card. Each plays as packets over the architecture, as a sequence diagram, or as a swimlane story, with a timeline beside the picture, subtitles, scrubbing, speed control and shareable deep links.
 - **One model, many views.** Write a node once; show it in an overview, a backend-only view, a per-team view.
 - **Diagrams inside diagrams.** Give a node `diagram: payments` and readers can click it for a picture of what is inside, expand it in place as a group around the whole inner diagram, or open it to move in with its own views and scenarios, then step back out. Each level keeps its place, and both are part of the link.
 - **Docs inside the picture.** Click a box for its markdown, connections and source references. Edge keys link to an interfaces table generated from the model.

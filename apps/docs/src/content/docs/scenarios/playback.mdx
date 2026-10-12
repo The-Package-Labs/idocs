@@ -1,5 +1,5 @@
 ---
-title: Playback, sharing and the step list
+title: The side panel, playback and sharing
 description: "What readers can do with a scenario: play, step, scrub, follow, jump to a step and share a link to it."
 tableOfContents:
   maxHeadingLevel: 3
@@ -8,9 +8,21 @@ tableOfContents:
 import Diagram from '@the-package-labs/idocs-astro/Diagram.astro'
 import { Aside } from '@astrojs/starlight/components'
 
-Everything a reader does with a scenario happens in the player under the diagram and in the step list below it.
+Everything a reader does with a scenario happens in a panel beside the picture, so the story and the picture are in view together.
 
 <Diagram name="checkout" scenario="place-order" />
+
+## The side panel
+
+The panel has tabs, and the player is docked at the bottom of it whichever tab is open.
+
+| Tab | What is in it |
+|---|---|
+| **Scenarios** | A card for each scenario of the view: its title, how many steps and phases it has, the first lines of its summary, and a small bar showing how the phases divide up. **Overview** shows the diagram on its own. |
+| **Timeline** | The scenario in progress: its summary, then every step grouped by phase. Appears once a scenario is chosen, and opens by itself when one is. |
+| **Views** | A card for each view. Appears when the diagram has more than one. |
+
+The arrow at the top folds the panel away to a thin rail that keeps **Previous**, **Play** and **Next**, so the picture can have the whole width. A page can start it folded with `sidebar={false}`. When the widget is narrow, under about 820 px, the panel moves above the picture instead of beside it.
 
 ## The player
 
@@ -20,15 +32,20 @@ Everything a reader does with a scenario happens in the player under the diagram
 | **Previous step, Next step** | Moves one step at a time. If a step is half played, **Next** finishes it first. |
 | **Scrubber** | Drag to any moment. Playback pauses while you scrub. |
 | **Speed** | 0.5×, 1× or 2×. |
+| **CC** | Turns the [subtitles](#subtitles) on and off. |
 | **Flow, Sequence, Story** | Switches how the scenario is drawn. See [story](../story-view/) and [sequence](../sequence-view/). |
 
 The player also shows where you are: `step 3/9 · 0:04`.
 
-## The step list
+## The timeline
 
-Every step is listed under the player, grouped by phase. The step in progress is highlighted, finished steps are marked, and notes appear under their step. A multi-hop step names the nodes it passes through ("via CDN, API gateway").
+Every step is listed in the **Timeline** tab, grouped by phase, beside the picture. The panel scrolls by itself to keep the step in progress in view, and never scrolls the page to do it. The step in progress is highlighted, finished steps are marked, and notes appear under their step. A multi-hop step names the nodes it passes through ("via CDN, API gateway").
 
 **Click a step** to play it. The path already travelled stays lit, so a reader can jump to the middle of a story and still see how it got there. The list is also keyboard-friendly: Tab to a step and press <kbd>Enter</kbd> or <kbd>Space</kbd>.
+
+## Subtitles
+
+While a scenario plays, the step in progress is written out over the bottom of the picture: its number, what it does, who talks to whom, and the note you wrote for it. They are on by default, and **CC** in the player or on the picture's toolbar turns them off. A page can start without them with `subtitles={false}`. Beside a sequence or a story they stay at the bottom of the window as the page scrolls.
 
 ## Follow
 
@@ -42,7 +59,7 @@ The address bar follows the scenario and step, so readers can share exactly what
 https://example.com/examples/checkout/#checkout=place-order.4
 ```
 
-The format is `#<diagram>=<scenario>[.<step>]`, where the step is the number shown in the step list. A page with several diagrams joins them with `&`:
+The format is `#<diagram>=<scenario>[.<step>]`, where the step is the number shown in the timeline. A page with several diagrams joins them with `&`:
 
 ```text
 #checkout=place-order.4&payments=pay.2

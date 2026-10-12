@@ -1,4 +1,5 @@
 import type { CompiledDiagram, CompiledScenario } from '@the-package-labs/idocs-core'
+import { useEffect, useRef } from 'react'
 import { cx, roman } from './util'
 
 interface Props {
@@ -11,11 +12,27 @@ interface Props {
 }
 
 export function StepPanel({ diagram, scenario, current, ended, onSeek }: Props) {
+  const root = useRef<HTMLDivElement>(null)
+  // The list sits beside the picture to be followed: keep the step in progress in view inside the
+  // panel that scrolls it, and never scroll the page for it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the step in progress is the trigger
+  useEffect(() => {
+    const el = root.current?.querySelector<HTMLElement>('.idocs-step.is-active')
+    const box = el?.closest<HTMLElement>('.idocs-side-body')
+    if (!el || !box) return
+    const b = box.getBoundingClientRect()
+    const r = el.getBoundingClientRect()
+    const margin = 10
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
+    const to = (top: number) => box.scrollTo({ top, behavior: reduced ? 'auto' : 'smooth' })
+    if (r.top < b.top + margin) to(box.scrollTop + r.top - b.top - margin)
+    else if (r.bottom > b.bottom - margin) to(box.scrollTop + r.bottom - b.bottom + margin)
+  }, [current])
   const title = (id?: string) => (id ? (diagram.nodes[id]?.title ?? id) : '')
   const showPhases = scenario.phases.some((p) => p.title)
   let lastPhase = -1
   return (
-    <div className="idocs-steps" role="list" aria-label="Steps">
+    <div ref={root} className="idocs-steps" role="list" aria-label="Steps">
       {scenario.steps.map((s, i) => {
         const header =
           showPhases && s.phase !== lastPhase ? (

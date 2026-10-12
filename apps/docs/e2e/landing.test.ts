@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { type Browser, chromium, type Page } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { serve } from '../../../scripts/static-server.mjs'
+import { pickView, scenarioTitles } from './panel'
 
 const PORT = 4502
 const BASE = `http://localhost:${PORT}`
@@ -90,23 +91,29 @@ describe('landing page', () => {
     expect(await hero.locator('.idocs-chips .idocs-chip').count()).toBeGreaterThan(1)
     expect(await hero.locator('[data-node] .idocs-node-uses').count()).toBeGreaterThan(0)
     expect(await hero.locator('[data-node="orders"] [data-act="expand"]').count()).toBe(1)
-    // Views, scenarios, and a custom edge kind in the legend.
-    expect(await hero.locator('.idocs-tab').allTextContents()).toEqual([
-      'Overview',
-      'Backend only',
-      'Interfaces',
-    ])
-    expect(await hero.locator('.idocs-chip-btn').allTextContents()).toEqual([
-      'Overview',
-      'Place an order',
-      'Card declined',
-    ])
+    // A custom edge kind in the legend, and an overview that fits whole.
     expect(await hero.locator('.idocs-legend').textContent()).toContain('Audit trail')
     // The overview fits whole, so the camera is not chasing the action.
     expect(await hero.locator('[aria-label="Fit to view"]').count()).toBe(1)
     expect(await hero.locator('.idocs-tool[aria-pressed="true"]:has-text("Follow")').count()).toBe(
       0,
     )
+    // Views and scenarios are in the panel, which starts folded to a rail so the picture has room.
+    expect(await hero.locator('.idocs-side.is-folded').count()).toBe(1)
+    expect(await hero.locator('.idocs-rail [aria-label="Next step"]').count()).toBe(1)
+    await hero.getByRole('button', { name: 'Show the panel' }).click()
+    expect(await hero.locator('.idocs-side-tab').allTextContents()).toEqual([
+      'Scenarios',
+      'Timeline',
+      'Views',
+    ])
+    expect(await scenarioTitles(page, '.lp-hero')).toEqual([
+      'Overview',
+      'Place an order',
+      'Card declined',
+    ])
+    await pickView(page, 'Interfaces', '.lp-hero')
+    await hero.locator('.idocs-scn[aria-pressed="true"]').waitFor()
     expect(problems).toEqual([])
     await close()
   })
@@ -117,8 +124,8 @@ describe('landing page', () => {
     await page.click('.lp-hero [data-node="stock"] [data-act="expand"]')
     await page.waitForSelector('.lp-hero [data-inline][data-node="stock"]')
     expect(await page.locator('.lp-hero [data-node="stock/api"]').count()).toBe(1)
-    await page.click('.lp-hero .idocs-tab:has-text("Interfaces")')
-    await page.waitForSelector('.lp-hero .idocs-interfaces, .lp-hero table')
+    await pickView(page, 'Interfaces', '.lp-hero')
+    await page.waitForSelector('.lp-hero table')
     expect(problems).toEqual([])
     await close()
   })

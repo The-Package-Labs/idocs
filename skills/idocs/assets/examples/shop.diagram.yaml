@@ -3,7 +3,7 @@
 title: Online store
 description: |
   How a shopper's request reaches the store and what the backend does with it.
-  Pick a scenario above the diagram and press play.
+  Pick a scenario in the panel beside the diagram and press play.
 
 groups:
   backend:

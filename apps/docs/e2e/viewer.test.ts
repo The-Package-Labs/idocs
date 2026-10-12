@@ -81,8 +81,11 @@ describe('resizing the viewer', () => {
     await drag(page, -120)
     expect(Math.abs((await height(page)) - (start + 60))).toBeLessThanOrEqual(3)
     await drag(page, -2000)
-    expect(await height(page)).toBe(220)
-    expect(Number(await handle(page).getAttribute('aria-valuenow'))).toBe(220)
+    // As short as it goes, which is taller when there is a panel beside the picture.
+    const shortest = Number(await handle(page).getAttribute('aria-valuemin'))
+    expect(shortest).toBeGreaterThanOrEqual(220)
+    expect(await height(page)).toBe(shortest)
+    expect(Number(await handle(page).getAttribute('aria-valuenow'))).toBe(shortest)
     await close()
   })
 
@@ -97,7 +100,7 @@ describe('resizing the viewer', () => {
     await page.keyboard.press('ArrowUp')
     expect(await height(page)).toBe(auto + 120)
     await page.keyboard.press('Home')
-    expect(await height(page)).toBe(220)
+    expect(await height(page)).toBe(Number(await handle(page).getAttribute('aria-valuemin')))
     await page.keyboard.press('Enter')
     expect(await height(page)).toBe(auto)
 

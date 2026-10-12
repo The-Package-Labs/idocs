@@ -89,7 +89,7 @@ try {
   await page.goto(`${base}/architecture/`, { waitUntil: 'networkidle' })
   await page.waitForSelector('[data-node]')
   const nodes = await page.locator('[data-node]').count()
-  await page.click('.idocs-chip-btn:has-text("Place an order")')
+  await page.click('.idocs-scn:has-text("Place an order")')
   await page.waitForSelector('.idocs-packet', { state: 'attached', timeout: 8000 })
   await browser.close()
   if (nodes !== 7) throw new Error(`expected 7 nodes in the shop diagram, found ${nodes}`)

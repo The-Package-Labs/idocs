@@ -16,7 +16,7 @@ scenarios:
         steps:
           - browser -> orders:
               label: POST /orders
-              note: The request carries an idempotency key.     # explanation shown in the step list
+              note: The request carries an idempotency key.     # explanation shown in the timeline
           - orders -> db: { label: INSERT order, kind: lookup }
       - title: Charge
         steps:
@@ -41,7 +41,7 @@ Every step can be written compactly (`a -> b: label`) or as a map (`a -> b: { la
 |---|---|
 | `label` | What travels, shown on the packet. Keep it short. |
 | `kind` | `request` (default), `response`, `error`, `lookup`, `event`. Changes the packet's colour and style. |
-| `note` | Markdown explanation shown in the step list. |
+| `note` | Markdown explanation shown in the timeline. |
 | `status` | `planned` draws the step dashed with a tag. |
 | `via` | Force the route through these nodes: `via: [gateway]`. |
 | `hold` | Extra pause in seconds. |
@@ -98,7 +98,7 @@ scenarios:
 - **One question per scenario.** "Pay with a card" and "Card declined" are two scenarios.
 - **Failures get their own scenario.** That is where readers learn the most.
 - **Label what travels** (`POST /payments`, `payment.succeeded`) and put the reasoning in `note`.
-- **Two to five phases**, with plain names. They become the chapter headings in the step list.
+- **Two to five phases**, with plain names. They become the chapter headings in the timeline.
 - **Do not narrate the obvious.** A note should answer "why" or "what could go wrong here".
 - **Start at the actor.** The first step is usually `browser -> gateway`, or an `at` step describing the trigger.
 - If a scenario needs a relationship you do not want drawn, add the edge with `hidden: true`.

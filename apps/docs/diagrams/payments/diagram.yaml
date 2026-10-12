@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=../diagram.schema.json
 title: Payments
 description: |
-  How a card payment moves through the system. Pick a **scenario** above the diagram
+  How a card payment moves through the system. Pick a **scenario** in the panel beside the diagram
   and press play. Each one is a short story about what happens to a single request.
 
 nodes:

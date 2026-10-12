@@ -27,10 +27,10 @@ import { insideOf } from './inside'
 import { Legend } from './Legend'
 import { NodeCard, type NodeCardState, type NodeInside } from './NodeCard'
 import { Packets } from './Packets'
-import { Player } from './Player'
 import { SequenceView } from './SequenceView'
-import { StepPanel } from './StepPanel'
+import { Sidebar, type SideTab } from './Sidebar'
 import { StoryView } from './StoryView'
+import { Subtitle } from './Subtitle'
 import { type Crumb, Trail } from './Trail'
 import { useLayout } from './useLayout'
 import { usePlayer } from './usePlayer'
@@ -55,6 +55,13 @@ export interface DiagramViewProps {
   /** Keep the selected scenario and step in the URL hash so they can be shared. */
   hash?: boolean
   className?: string
+  /**
+   * Whether the side panel (scenarios, timeline, views and the player) starts open. A reader can
+   * fold it away and bring it back. Default `true`.
+   */
+  sidebar?: boolean
+  /** Show what the scenario is doing in words over the picture while it plays. Default `true`. */
+  subtitles?: boolean
   /** Handle node clicks externally, for example in a visual editor. Replaces the detail drawer. */
   onNodeSelect?: (id: string) => void
   /** Highlight a node selected by an external editor. */
@@ -274,6 +281,8 @@ export function DiagramView(props: DiagramViewProps) {
               showDescription={first ? props.showDescription : true}
               autoplay={first ? props.autoplay : false}
               hash={hash}
+              sidebar={first ? props.sidebar : undefined}
+              subtitles={props.subtitles}
               hashKey={hashKeyAt(level)}
               active={top}
               fullscreen={fullscreen}
@@ -306,6 +315,8 @@ interface LevelProps
     | 'showDescription'
     | 'autoplay'
     | 'hash'
+    | 'sidebar'
+    | 'subtitles'
     | 'onNodeSelect'
     | 'selectedNode'
     | 'onNodeOpen'
@@ -344,6 +355,8 @@ function Level({
   showDescription = false,
   autoplay: autoplayProp = false,
   hash = true,
+  sidebar: sidebarProp = true,
+  subtitles: subtitlesProp = true,
   hashKey,
   active,
   fullscreen,
@@ -383,12 +396,24 @@ function Level({
   const [mode, setMode] = useState<'flow' | 'sequence' | 'story'>(
     () => modeProp ?? diagram.scenarios.find((s) => s.id === scenarioProp)?.mode ?? 'flow',
   )
+  // The side panel: its tabs, whether it is open, and the subtitles it can switch.
+  const [tabState, setTab] = useState<SideTab>(scenarioProp ? 'timeline' : 'scenarios')
+  const [sideOpen, setSideOpen] = useState(sidebarProp)
+  const [subtitles, setSubtitles] = useState(subtitlesProp)
   const [hover, setHover] = useState<{ node?: string; edge?: string }>({})
   const [internalSelected, setSelected] = useState<string | null>(null)
   const selected = selectedNode === undefined ? internalSelected : selectedNode
   const [hidePlanned, setHidePlanned] = useState(false)
   // null means automatic: follow the action when the diagram is too big to read at once.
   const [follow, setFollow] = useState<boolean | null>(null)
+
+  const hasSide = scenarios.length > 0 || diagram.views.length > 1
+  const tabs: SideTab[] = [
+    ...(scenarios.length > 0 ? (['scenarios'] as const) : []),
+    ...(scenario ? (['timeline'] as const) : []),
+    ...(diagram.views.length > 1 ? (['views'] as const) : []),
+  ]
+  const tab = tabs.includes(tabState) ? tabState : (tabs[0] ?? 'scenarios')
 
   // Nodes shown in place, as paths: `orders`, and `orders/stock` inside it. The author may have
   // asked for some to start that way.
@@ -442,6 +467,7 @@ function Level({
   const selectScenario = (id: string | null) => {
     autoplay.current = id !== null && !prefersReducedMotion()
     setScenarioId(id)
+    setTab(id ? 'timeline' : 'scenarios')
     setHover({})
     if (id === null) setMode('flow')
     else {
@@ -453,6 +479,7 @@ function Level({
   const selectView = (id: string) => {
     setViewId(id)
     setScenarioId(null)
+    setTab('scenarios')
     setSelected(null)
     setMode('flow')
   }
@@ -466,6 +493,7 @@ function Level({
     if (!sc) return
     setViewId(sc.view)
     setScenarioId(sc.id)
+    setTab('timeline')
     if (sc.mode) setMode(sc.mode)
     if (hit.step) pendingStep.current = hit.step - 1
   }, [diagram, hash, hashKey])
@@ -690,6 +718,14 @@ function Level({
   const stateOf = useCallback((id: string) => edgeStates[id] ?? EMPTY, [edgeStates])
   const presentation = scenario ? mode : 'flow'
 
+  // What is happening, in words, while a scenario plays. On the picture it floats over the bottom
+  // edge; beside a sequence or a story it sticks to the bottom of the window.
+  const step = scenario && stepIndex >= 0 ? scenario.steps[stepIndex] : undefined
+  const subtitle =
+    subtitles && scenarioActive && step && scenario ? (
+      <Subtitle diagram={diagram} step={step} total={scenario.steps.length} />
+    ) : null
+
   return (
     <>
       {showTitle && <h3 style={{ margin: 0 }}>{diagram.title}</h3>}
@@ -699,182 +735,162 @@ function Level({
           dangerouslySetInnerHTML={{ __html: diagram.descriptionHtml }}
         />
       )}
-
-      {diagram.views.length > 1 && (
-        <div className="idocs-tabs" role="tablist" aria-label="Views">
-          {diagram.views.map((v) => (
-            <button
-              key={v.id}
-              type="button"
-              role="tab"
-              className="idocs-tab"
-              aria-selected={v.id === view.id}
-              onClick={() => selectView(v.id)}
-            >
-              {v.title}
-            </button>
-          ))}
-        </div>
-      )}
       {view.summaryHtml && (
         <div className="idocs-summary" dangerouslySetInnerHTML={{ __html: view.summaryHtml }} />
       )}
 
-      {scenarios.length > 0 && (
-        <div className="idocs-scenarios" role="group" aria-label="Scenarios">
-          <span className="idocs-scenarios-label">Scenario</span>
-          <button
-            type="button"
-            className="idocs-chip-btn"
-            aria-pressed={!scenario}
-            onClick={() => selectScenario(null)}
-          >
-            Overview
-          </button>
-          {scenarios.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className="idocs-chip-btn"
-              aria-pressed={s.id === scenario?.id}
-              onClick={() => selectScenario(s.id)}
-            >
-              {s.title}
-            </button>
-          ))}
-        </div>
-      )}
-      {scenario?.summaryHtml && (
-        <div className={cx('idocs-summary', presentation === 'story' && 'is-card')}>
-          {presentation === 'story' && (
-            <strong className="idocs-summary-title">The story in one breath</strong>
-          )}
-          <div dangerouslySetInnerHTML={{ __html: scenario.summaryHtml }} />
-        </div>
-      )}
-
-      {presentation === 'flow' && <Legend diagram={diagram} view={view} />}
-
-      {scenario && presentation === 'sequence' ? (
-        <SequenceView
-          diagram={diagram}
-          scenario={scenario}
-          current={stepIndex}
-          onSeek={player.playStep}
-        />
-      ) : scenario && presentation === 'story' ? (
-        <StoryView
-          diagram={diagram}
-          scenario={scenario}
-          current={stepIndex}
-          ended={player.ended}
-          onSeek={player.playStep}
-        />
-      ) : layout ? (
-        <Canvas
-          layout={layout}
-          maxHeight={maxHeight}
-          fullscreen={fullscreen}
-          onToggleFullscreen={onToggleFullscreen}
-          onBackgroundClick={closeDrawer}
-          focus={camera}
-          onUserMove={stopFollowing}
-          tools={
-            <>
-              {scenario && (
-                <div className="idocs-toolbar-group">
-                  <button
-                    type="button"
-                    className="idocs-tool is-text"
-                    aria-pressed={following}
-                    onClick={() => setFollow(!following)}
-                    title="Move the view to wherever the action is"
-                  >
-                    Follow
-                  </button>
-                </div>
-              )}
-              {hasPlanned && (
-                <div className="idocs-toolbar-group">
-                  <button
-                    type="button"
-                    className="idocs-tool is-text"
-                    aria-pressed={hidePlanned}
-                    onClick={() => setHidePlanned((v) => !v)}
-                    title="Hide items that are not built yet"
-                  >
-                    {hidePlanned ? 'Planned hidden' : 'Hide planned'}
-                  </button>
-                </div>
-              )}
-            </>
-          }
-          overlay={
-            active &&
-            selected &&
-            target &&
-            !onNodeSelect && (
-              <Drawer
-                diagram={target.diagram}
-                view={target.view}
-                nodeId={target.id}
-                inside={insideOf(target.diagram.nodes[target.id]!, reach, canOpen)}
-                peek={peekOf(target.diagram.nodes[target.id]!, reach)}
-                expanded={expandedSet.has(selected)}
-                onExpand={() => toggleExpand(selected)}
-                onOpen={() => openPath(selected)}
-                onClose={closeDrawer}
-                onSelect={(id) => setSelected(`${target.prefix}${id}`)}
-              />
-            )
-          }
-        >
-          <World
-            uid={uid}
+      <div
+        className={cx(
+          'idocs-workspace',
+          hasSide && 'has-side',
+          hasSide && !sideOpen && 'is-folded',
+        )}
+      >
+        {hasSide && (
+          <Sidebar
             diagram={diagram}
             view={view}
-            layout={layout}
-            nodeFlags={nodeFlags}
-            stateOf={stateOf}
-            edgeStates={edgeStates}
-            register={register}
-            nested={nested}
-            diagrams={reach}
-            insides={insides}
-            selected={selected}
-            hidePlanned={hidePlanned}
-            onHoverNode={onHoverNode}
-            onHoverEdge={onHoverEdge}
-            onSelect={onSelect}
-            onToggle={toggleExpand}
-            onOpen={canOpen ? openPath : undefined}
+            scenarios={scenarios}
+            scenario={scenario}
+            onScenario={selectScenario}
+            onView={selectView}
+            tab={tab}
+            tabs={tabs}
+            onTab={setTab}
+            open={sideOpen}
+            onOpen={setSideOpen}
+            player={player}
+            timeline={timeline}
+            mode={mode}
+            onMode={setMode}
+            stepIndex={stepIndex}
+            subtitles={subtitles}
+            onSubtitles={setSubtitles}
           />
-          {frame && scenarioActive && <Packets frame={frame} layout={layout} paths={paths} />}
-        </Canvas>
-      ) : (
-        <div className="idocs-frame idocs-skeleton">
-          {error ? <div className="idocs-error">{error}</div> : 'Loading diagram…'}
-        </div>
-      )}
+        )}
 
-      {scenario && timeline && (
-        <Player
-          player={player}
-          timeline={timeline}
-          mode={mode}
-          onMode={setMode}
-          stepIndex={stepIndex}
-        />
-      )}
-      {scenario && (
-        <StepPanel
-          diagram={diagram}
-          scenario={scenario}
-          current={stepIndex}
-          ended={player.ended}
-          onSeek={player.playStep}
-        />
-      )}
+        <div className="idocs-stage">
+          {presentation === 'flow' && <Legend diagram={diagram} view={view} />}
+
+          {scenario && presentation === 'sequence' ? (
+            <SequenceView
+              diagram={diagram}
+              scenario={scenario}
+              current={stepIndex}
+              onSeek={player.playStep}
+            />
+          ) : scenario && presentation === 'story' ? (
+            <StoryView
+              diagram={diagram}
+              scenario={scenario}
+              current={stepIndex}
+              ended={player.ended}
+              onSeek={player.playStep}
+            />
+          ) : layout ? (
+            <Canvas
+              layout={layout}
+              maxHeight={maxHeight}
+              minHeight={hasSide && sideOpen ? 340 : 220}
+              fullscreen={fullscreen}
+              onToggleFullscreen={onToggleFullscreen}
+              onBackgroundClick={closeDrawer}
+              focus={camera}
+              onUserMove={stopFollowing}
+              subtitle={subtitle}
+              tools={
+                <>
+                  {scenario && (
+                    <div className="idocs-toolbar-group">
+                      <button
+                        type="button"
+                        className="idocs-tool is-text"
+                        aria-pressed={following}
+                        onClick={() => setFollow(!following)}
+                        title="Move the view to wherever the action is"
+                      >
+                        Follow
+                      </button>
+                      <button
+                        type="button"
+                        className="idocs-tool is-text"
+                        aria-pressed={subtitles}
+                        onClick={() => setSubtitles(!subtitles)}
+                        title={subtitles ? 'Turn the subtitles off' : 'Turn the subtitles on'}
+                      >
+                        CC
+                      </button>
+                    </div>
+                  )}
+                  {hasPlanned && (
+                    <div className="idocs-toolbar-group">
+                      <button
+                        type="button"
+                        className="idocs-tool is-text"
+                        aria-pressed={hidePlanned}
+                        onClick={() => setHidePlanned((v) => !v)}
+                        title="Hide items that are not built yet"
+                      >
+                        {hidePlanned ? 'Planned hidden' : 'Hide planned'}
+                      </button>
+                    </div>
+                  )}
+                </>
+              }
+              overlay={
+                active &&
+                selected &&
+                target &&
+                !onNodeSelect && (
+                  <Drawer
+                    diagram={target.diagram}
+                    view={target.view}
+                    nodeId={target.id}
+                    inside={insideOf(target.diagram.nodes[target.id]!, reach, canOpen)}
+                    peek={peekOf(target.diagram.nodes[target.id]!, reach)}
+                    expanded={expandedSet.has(selected)}
+                    onExpand={() => toggleExpand(selected)}
+                    onOpen={() => openPath(selected)}
+                    onClose={closeDrawer}
+                    onSelect={(id) => setSelected(`${target.prefix}${id}`)}
+                  />
+                )
+              }
+            >
+              <World
+                uid={uid}
+                diagram={diagram}
+                view={view}
+                layout={layout}
+                nodeFlags={nodeFlags}
+                stateOf={stateOf}
+                edgeStates={edgeStates}
+                register={register}
+                nested={nested}
+                diagrams={reach}
+                insides={insides}
+                selected={selected}
+                hidePlanned={hidePlanned}
+                onHoverNode={onHoverNode}
+                onHoverEdge={onHoverEdge}
+                onSelect={onSelect}
+                onToggle={toggleExpand}
+                onOpen={canOpen ? openPath : undefined}
+              />
+              {frame && scenarioActive && <Packets frame={frame} layout={layout} paths={paths} />}
+            </Canvas>
+          ) : (
+            <div className="idocs-frame idocs-skeleton">
+              {error ? <div className="idocs-error">{error}</div> : 'Loading diagram…'}
+            </div>
+          )}
+
+          {presentation !== 'flow' && subtitle && (
+            <div className="idocs-subtitles is-sticky">{subtitle}</div>
+          )}
+        </div>
+      </div>
+
       {view.interfaces && (
         <InterfaceTable
           diagram={diagram}
