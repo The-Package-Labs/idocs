@@ -4,6 +4,7 @@ import {
   hasPhases,
 } from '@the-package-labs/idocs-core'
 import { FoldAll, UnfoldAll } from './Folding'
+import { Markup } from './Markup'
 import { StepPanel } from './StepPanel'
 
 interface Props {
@@ -42,7 +43,7 @@ export function StepsPopover({
         {scenario.summaryHtml && (
           <div className="idocs-panel-summary">
             <span className="idocs-panel-summary-title">The story in one breath</span>
-            <div dangerouslySetInnerHTML={{ __html: scenario.summaryHtml }} />
+            <Markup html={scenario.summaryHtml} />
           </div>
         )}
         {hasPhases(scenario) && scenario.phases.length > 1 && (

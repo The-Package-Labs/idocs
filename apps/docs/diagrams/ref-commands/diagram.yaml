@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../diagram.schema.json
+title: Commands with placeholders
+description: |
+  **Click a box**, then use **Fill in** under a command to give its placeholders their values.
+  The same name fills every command on the page.
+
+nodes:
+  dev:
+    kind: client
+    icon: lucide:terminal
+    title: Your machine
+  registry:
+    kind: service
+    icon: github
+    title: Package registry
+    sub: needs a token
+
+edges:
+  - dev -> registry: install

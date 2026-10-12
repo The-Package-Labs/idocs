@@ -132,6 +132,7 @@ export default defineConfig({
             { slug: 'customize/icons' },
             { slug: 'customize/theming' },
             { slug: 'customize/colours' },
+            { slug: 'customize/commands' },
           ],
         },
         {

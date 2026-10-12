@@ -1,4 +1,7 @@
+export { CommandBlock, copyText } from './Command'
 export { DiagramView, type DiagramViewProps } from './DiagramView'
 export { Icon, IconTile } from './Icon'
+export { Markup } from './Markup'
 export { NodeCard, type NodeInside } from './NodeCard'
 export { SequenceView } from './SequenceView'
+export { createVarStore, pageVars, useVars, type VarStore, type Vars } from './vars'

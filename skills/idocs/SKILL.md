@@ -69,7 +69,7 @@ scenarios:
       - api -> browser: 200 OK
 ```
 
-Click-through documentation for a box goes in `diagrams/<name>/nodes/<id>.md` (markdown, tables and code fences work). Long scenarios can live in `diagrams/<name>/scenarios/<id>.yaml`.
+Click-through documentation for a box goes in `diagrams/<name>/nodes/<id>.md` (markdown, tables and code fences work). Every code fence gets a Copy button, and in a shell, text or config fence a `{name}` or `<name>` is a value the reader fills in before copying (`\{name}` writes the braces literally; `vars` and `novars` after the language turn it on or off for other languages). Long scenarios can live in `diagrams/<name>/scenarios/<id>.yaml`.
 
 On a page (`src/content/docs/*.mdx`):
 

@@ -2,6 +2,7 @@ import type { CompiledDiagram, CompiledView } from '@the-package-labs/idocs-core
 import { useEffect, useRef } from 'react'
 import { DiagramPreview } from './DiagramPreview'
 import { IconTile } from './Icon'
+import { Markup } from './Markup'
 import { CollapseIcon, ExpandIcon, insideCounts, LayersIcon, type NodeInside } from './NodeCard'
 import { cx } from './util'
 
@@ -136,7 +137,7 @@ export function Drawer({
           </section>
         )}
         {node.docHtml ? (
-          <div className="idocs-md" dangerouslySetInnerHTML={{ __html: node.docHtml }} />
+          <Markup className="idocs-md" html={node.docHtml} />
         ) : node.lines.length ? (
           <ul>
             {node.lines.map((l) => (

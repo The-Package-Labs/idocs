@@ -5,6 +5,7 @@ import {
   phaseSpans,
 } from '@the-package-labs/idocs-core'
 import { useEffect, useMemo, useRef } from 'react'
+import { Markup } from './Markup'
 import { PhaseHead } from './PhaseHead'
 import { cx, keepInView } from './util'
 
@@ -83,9 +84,7 @@ export function StepPanel({
             <span className={cx('idocs-pill', `st-${s.status}`)}>{s.status}</span>
           )}
         </div>
-        {s.noteHtml && (
-          <div className="idocs-step-note" dangerouslySetInnerHTML={{ __html: s.noteHtml }} />
-        )}
+        {s.noteHtml && <Markup className="idocs-step-note" html={s.noteHtml} />}
       </div>
     )
   }

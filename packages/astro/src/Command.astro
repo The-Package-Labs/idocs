@@ -1,0 +1,23 @@
+---
+import { CommandBlock } from '@the-package-labs/idocs-react'
+import '@the-package-labs/idocs-react/styles.css'
+
+interface Props {
+  /**
+   * The command. `{name}` and `<name>` in it are values the reader fills in before they copy; a
+   * value given once fills every command on the site. Write `\{name}` for the braces themselves.
+   * Pass it as an attribute: braces in the body of an MDX tag are code.
+   */
+  code: string
+  /** Shown in the data attribute for styling; the text is not highlighted. */
+  lang?: string
+  /** A caption over the command. */
+  title?: string
+}
+
+const { code, lang, title } = Astro.props
+---
+
+<div class="not-content idocs-command">
+  <CommandBlock client:visible code={code} lang={lang} title={title} />
+</div>

@@ -24,6 +24,7 @@ const CONFIG = {
     entries: ['src/index.ts'],
     copy: [
       ['src/Diagram.astro', 'dist/Diagram.astro'],
+      ['src/Command.astro', 'dist/Command.astro'],
       ['src/starlight.css', 'dist/starlight.css'],
       ['src/virtual.d.ts', 'dist/virtual.d.ts'],
     ],

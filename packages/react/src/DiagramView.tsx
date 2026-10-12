@@ -35,6 +35,7 @@ import { InlineDiagram } from './InlineDiagram'
 import { InterfaceTable } from './InterfaceTable'
 import { insideOf } from './inside'
 import { Legend } from './Legend'
+import { Markup } from './Markup'
 import { NodeCard, type NodeCardState, type NodeInside } from './NodeCard'
 import { Outline } from './Outline'
 import { Packets } from './Packets'
@@ -879,14 +880,9 @@ function Level({
     <>
       {showTitle && <h3 style={{ margin: 0 }}>{diagram.title}</h3>}
       {(showTitle || showDescription) && diagram.descriptionHtml && (
-        <div
-          className="idocs-summary"
-          dangerouslySetInnerHTML={{ __html: diagram.descriptionHtml }}
-        />
+        <Markup className="idocs-summary" html={diagram.descriptionHtml} />
       )}
-      {view.summaryHtml && (
-        <div className="idocs-summary" dangerouslySetInnerHTML={{ __html: view.summaryHtml }} />
-      )}
+      {view.summaryHtml && <Markup className="idocs-summary" html={view.summaryHtml} />}
 
       <div ref={workspaceRef} className={cx('idocs-workspace', scenarios.length > 0 && 'has-bar')}>
         {presentation === 'flow' && <Legend diagram={diagram} view={view} />}

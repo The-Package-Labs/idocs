@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./Diagram.astro": "./src/Diagram.astro",
+    "./Command.astro": "./src/Command.astro",
     "./starlight.css": "./src/starlight.css",
     "./virtual": {
       "types": "./src/virtual.d.ts"
@@ -45,6 +46,7 @@
         "default": "./dist/index.js"
       },
       "./Diagram.astro": "./dist/Diagram.astro",
+      "./Command.astro": "./dist/Command.astro",
       "./starlight.css": "./dist/starlight.css",
       "./virtual": {
         "types": "./dist/virtual.d.ts"
